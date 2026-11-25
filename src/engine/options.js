@@ -74,17 +74,21 @@ export function findTopLevel(input, needle) {
   return -1;
 }
 
-export function parseOptions(input = "") {
+export function parseOptions(input = "", namedStyles) {
   const options = {};
   const withoutComments = stripTexComments(String(input ?? ""));
   for (const part of splitTopLevel(withoutComments, ",")) {
     const equals = findTopLevel(part, "=");
-    if (equals === -1) {
-      setParsedOption(options, part.trim(), true);
-      continue;
+    const key = (equals === -1 ? part : part.slice(0, equals)).trim();
+    const value = equals === -1 ? true : stripOuterBraces(part.slice(equals + 1).trim());
+    if (namedStyles && Object.hasOwn(options, key) &&
+        (Object.hasOwn(namedStyles, key) || Object.hasOwn(options, key + "/.style"))) {
+      // A picture style can append hooks, so repeating a user-named style
+      // is an action, not simply overwriting a scalar option.
+      let index = Object.keys(options).length;
+      while (Object.hasOwn(options, `tikzkit style call ${index}:${key}`)) index++;
+      renameOrderedKey(options, key, `tikzkit style call ${index}:${key}`);
     }
-    const key = part.slice(0, equals).trim();
-    const value = stripOuterBraces(part.slice(equals + 1).trim());
     setParsedOption(options, key, value);
   }
   return options;
@@ -116,7 +120,7 @@ export function stripTexComments(input = "") {
 function setParsedOption(options, key, value) {
   key = normalizePositioningKey(key);
   if (key === "/pgf/tips") key = "tips";
-  if (key === "draw" || key === "fill" || key === "double" || positioningRegisterName(key) || automataParameterName(key) || petriAppendKey(key)) return setOrderedOption(options, key, value);
+  if (key === "draw" || key === "fill" || key === "double" || positioningRegisterName(key) || automataParameterName(key) || petriAppendKey(key) || pictureHookKey(key)) return setOrderedOption(options, key, value);
   if (key === "pattern" || key === "/tikz/pattern") {
     // PGF's empty/none forms only toggle filling. Keep that action distinct
     // from selecting ink so a bare key cannot shadow a scoped tile name.
@@ -268,6 +272,17 @@ function readBalancedGroup(text, start = 0) {
 
 export function normalizeOptions(command, rawOptions, env) {
   const expanded = substituteDynamicOptionValues(expandStyleOptions(rawOptions, env), env.variables || {});
+  // Named styles can insert hooks between two writes to the same key. Only
+  // now, after every style has expanded in source order, are they one list.
+  if (Object.hasOwn(expanded, "execute at end picture")) {
+    const hooks = [];
+    for (const [key, value] of Object.entries(expanded)) {
+      if (pictureHookKey(key) !== "execute at end picture") continue;
+      hooks.push(...optionValues(value));
+      delete expanded[key];
+    }
+    expanded["execute at end picture"] = hooks;
+  }
   const style = defaultStyleForCommand(command);
   const semantic = {};
   const defaultArrowTip = parseDefaultArrowTip(expanded);
@@ -1189,7 +1204,9 @@ function defaultStyleForCommand(command) {
 
 function expandStyleOptions(rawOptions, env) {
   let expanded = {};
-  for (const [key, value] of Object.entries(rawOptions || {})) {
+  for (const [rawKey, value] of Object.entries(rawOptions || {})) {
+    const key = pictureHookKey(rawKey) ?? (rawKey.startsWith("tikzkit style call ")
+      ? rawKey.slice(rawKey.indexOf(":") + 1) : rawKey);
     if (env.styles[key]) {
       const styleOptions = instantiateStyleOptions(env.styles[key], value);
       expanded = mergeOptionOrder(expanded, expandStyleOptions(styleOptions, env));
@@ -1264,17 +1281,23 @@ function petriAppendKey(key) {
     /^tikzkit prior (tokens|colored tokens|structured tokens) \d+$/.exec(key)?.[1];
 }
 
+export function pictureHookKey(key) {
+  if (key.startsWith("tikzkit prior ")) key = key.slice(14).replace(/ \d+$/, "");
+  if (key.startsWith("/tikz/")) key = key.slice(6);
+  return /^(?:framed|gridded|show background (?:rectangle|grid|top|bottom|left|right)|execute at end picture)$/.test(key) ? key : undefined;
+}
+
 function setOrderedOption(options, key, value) {
   key = normalizePositioningKey(key);
   key = automataParameterName(key) ?? key;
   if (preserveAutomataWrite(options, key, value)) return;
   if (key === "/pgf/tips") key = "tips";
-  const register = positioningRegisterName(key) ?? petriAppendKey(key);
+  const register = positioningRegisterName(key) ?? petriAppendKey(key) ?? pictureHookKey(key);
   if (register) {
     key = register;
     if (Object.hasOwn(options, key)) {
-      // Positioning assignments and Petri append actions execute where
-      // written. Keep earlier occurrences in place through style expansion.
+      // Ordered assignments and hooks execute where written. Keep earlier
+      // occurrences in place through style expansion.
       let index = Object.keys(options).length;
       while (Object.hasOwn(options, `tikzkit prior ${key} ${index}`)) index++;
       renameOrderedKey(options, key, `tikzkit prior ${key} ${index}`);

@@ -8885,6 +8885,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-petri.tex:256-262",
       "semanticOwner": "src/tikz/libraries/petriTokens.js:petriTokenGroups;src/tikz/libraries/petriTokens.js:petriTokenOffset",
       "features": ["Petri nets", "foreach", "structured tokens", "nine token arrangements"]
+    },
+    {
+      "id": "backgrounds-manual-blue-rounded",
+      "title": "Rounded blue frame and fill",
+      "source": "../native-backgrounds/backgrounds-manual-blue-rounded.tex",
+      "sourceCorpus": "TeX Live PGF Background Library manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-backgrounds.tex:146-151",
+      "semanticOwner": "src/engine/evaluate.js:runPictureEndHooks;src/tikz/libraries/backgrounds.js:backgroundFramePath",
+      "features": ["show background rectangle", "rounded corners", "blue fill", "draw and fill"]
+    },
+    {
+      "id": "backgrounds-manual-framed-gridded",
+      "title": "Red grid over a rounded yellow frame",
+      "source": "../native-backgrounds/backgrounds-manual-framed-gridded.tex",
+      "sourceCorpus": "TeX Live PGF Background Library manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-backgrounds.tex:190-194",
+      "semanticOwner": "src/engine/evaluate.js:runPictureEndHooks;src/tikz/libraries/backgrounds.js:backgroundFramePath",
+      "features": ["framed", "gridded", "half-centimetre grid", "background paint order"]
+    },
+    {
+      "id": "backgrounds-manual-four-sides",
+      "title": "Four extended background edges",
+      "source": "../native-backgrounds/backgrounds-manual-four-sides.tex",
+      "sourceCorpus": "TeX Live PGF Background Library manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-backgrounds.tex:242-250",
+      "semanticOwner": "src/engine/evaluate.js:runPictureEndHooks;src/tikz/libraries/backgrounds.js:backgroundFramePath",
+      "features": ["four background sides", "outer frame sep", "line extensions without a rectangle"]
     }
   ]
 }

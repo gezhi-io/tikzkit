@@ -1,5 +1,5 @@
 import { createToken, Lexer } from "chevrotain";
-import { applyStyleDeclarations, codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseStyleDeclarations, parseTikzset, splitTopLevel } from "../engine/options.js";
+import { applyStyleDeclarations, codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseStyleDeclarations, parseTikzset, pictureHookKey, splitTopLevel } from "../engine/options.js";
 import { preprocessTikzSource } from "./latex-shell.js";
 import { readForeachHeader } from "../tikz/commands/foreach.js";
 import { parsePgfPlotMarkDeclaration } from "../tikz/libraries/plotmarks.js";
@@ -95,7 +95,7 @@ export function parseTikz(source, options = {}) {
     // replay after the evaluator installs the declared libraries' defaults.
     const replacedStyles = new Set(declarations.filter(d => d.mode === "style").map(d => d.name));
     const inheritedStyleEdits = declarations.filter(d => !replacedStyles.has(d.name));
-    const globalOptions = collectTikzsetDirectOptions(prePictureSource);
+    const globalOptions = collectTikzsetDirectOptions(outerSource, libraries.some(lib => (lib.name || lib) === "backgrounds"));
     const globalCodeHandlers = collectCodeDefinitions(prePictureSource);
     const globalPics = collectPicDefinitions(prePictureSource);
     const globalStoredVariables = collectTikzsetStoredVariables(prePictureSource);
@@ -112,7 +112,7 @@ export function parseTikz(source, options = {}) {
       figureIndex: picture.index,
       graphicxResize: picture.graphicxResize,
       tabularLayout: tabularLayoutsByPicture.get(picture.index) || null,
-      options: { ...globalOptions, ...parseOptions(picture.optionsRaw) },
+      options: { ...globalOptions, ...parseOptions(picture.optionsRaw, globalStyles) },
       circuitikzOptions: collectCtikzsetDirectOptions(outerSource),
       styles: globalStyles,
       inheritedStyleEdits,
@@ -2699,7 +2699,7 @@ function collectStyleDefinitions(source) {
   return declarations;
 }
 
-function collectTikzsetDirectOptions(source) {
+function collectTikzsetDirectOptions(source, backgroundsLoaded) {
   const options = {};
   let index = 0;
   while (index < source.length) {
@@ -2713,9 +2713,12 @@ function collectTikzsetDirectOptions(source) {
     }
     index += 1;
   }
-  // TikZ clears its opening hook before applying every picture and the local
-  // options. A bare earlier \tikzset cannot queue code for the next picture.
-  delete options["execute at begin picture"];
+  // TikZ clears both hook lists before executing every picture. End hooks
+  // registered by bare preamble keys are not defaults for future pictures.
+  for (const key of Object.keys(options)) {
+    const hook = pictureHookKey(key);
+    if (key === "execute at begin picture" || hook === "execute at end picture" || backgroundsLoaded && hook) delete options[key];
+  }
   return options;
 }
 

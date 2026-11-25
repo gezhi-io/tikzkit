@@ -1,0 +1,13 @@
+% PGF/TikZ manual, pgfmanual-en-library-backgrounds.tex:134-139.
+% Copyright 2019 by Till Tantau. LPPL and/or GNU Free Documentation License.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{backgrounds}
+\begin{document}
+\begin{tikzpicture}
+  [background rectangle/.style=
+     {double,ultra thick,draw=red,top color=blue,rounded corners},
+   show background rectangle]
+  \draw (0,0) ellipse (10mm and 5mm);
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,12 @@
+% PGF/TikZ manual, pgfmanual-en-library-backgrounds.tex:190-194.
+% Copyright 2019 by Till Tantau. LPPL and/or GNU Free Documentation License.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{backgrounds}
+\begin{document}
+\tikzset{background grid/.style={thick,draw=red,step=.5cm},
+         background rectangle/.style={rounded corners,fill=yellow}}
+\begin{tikzpicture}[framed,gridded]
+  \draw (0,0) ellipse (10mm and 5mm);
+\end{tikzpicture}
+\end{document}

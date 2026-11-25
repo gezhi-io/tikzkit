@@ -61,11 +61,11 @@ export const tikzCommand = {
       notes: "Common inherited styles are supported; uncommon PGF key handlers may still be no-ops."
     },
     {
-      name: "background rectangle / show background rectangle",
+      name: "framed / gridded / show background rectangle, grid, top, bottom, left, right",
       category: "backgrounds",
       status: "partial",
       implementedBy: "src/engine/evaluate.js:interpretTikz + src/tikz/libraries/backgrounds.js",
-      notes: "Background rectangle support exists for gallery use; full layers library is partial."
+      notes: "The backgrounds library draws ordered end-of-picture paths around a shared saved box. Arbitrary PGF layer stacks are not implemented."
     }
   ],
   examples: [

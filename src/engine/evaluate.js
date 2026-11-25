@@ -20,6 +20,8 @@ import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath,
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { automataPlacement, automataStyles, replayAutomataNodeParameters } from "../tikz/libraries/automata.js";
 import { petriStyles } from "../tikz/libraries/petri.js";
+import { backgroundStyles, backgroundFrameKind, backgroundFrameBounds, backgroundFramePath } from "../tikz/libraries/backgrounds.js";
+import { includePictureItemBounds } from "./pictureBounds.js";
 import { petriChildLayout, petriChildNodeOptions, petriTokenGroups, petriTokenOffset } from "../tikz/libraries/petriTokens.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
 import { loadsModernArrowDefaults } from "../tikz/libraries/arrows.meta.js";
@@ -288,6 +290,8 @@ export function interpretTikz(ast, options = {}) {
   });
   const visiblePictures = ast.pictures || [];
   const petriLoaded = ast.libraries?.some(lib => (lib.name || lib) === "petri") ?? false;
+  const backgroundsLoaded = ast.libraries?.some(lib => (lib.name || lib) === "backgrounds") ?? false;
+  const libraryStyles = { ...BUILTIN_STYLES, ...(petriLoaded && petriStyles), ...(backgroundsLoaded && backgroundStyles) };
   const evaluationPictures = [
     ...(ast.semanticPreludePictures || []).map((picture) => ({ picture, semanticOnly: true })),
     ...visiblePictures.map((picture) => ({ picture, semanticOnly: false }))
@@ -314,7 +318,6 @@ export function interpretTikz(ast, options = {}) {
       ? createSceneGraph({ backgroundItems: [] })
       : ir;
     const pictureCoordinates = documentCoordinates;
-    const libraryStyles = petriLoaded ? { ...BUILTIN_STYLES, ...petriStyles } : BUILTIN_STYLES;
     const baseStyles = { ...libraryStyles, ...picture.styles, ...applyStyleDeclarations(picture.inheritedStyleEdits, libraryStyles) };
     const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
     const baseVariables = {
@@ -324,7 +327,7 @@ export function interpretTikz(ast, options = {}) {
     for (const expression of picture.pgfMathSeedsBefore || []) {
       documentRandom.setSeed(evaluateMath(expression, baseVariables));
     }
-    const { "execute at begin picture": beginPicture, ...pictureOptions } = stripStyleDefinitionOptions(
+    const { "execute at begin picture": beginPicture, "execute at end picture": endPicture, ...pictureOptions } = stripStyleDefinitionOptions(
       normalizeOptions("path", withImplicitStyleOption("every picture", picture.options || {}, styles), {
         variables: baseVariables,
         styles
@@ -351,6 +354,10 @@ export function interpretTikz(ast, options = {}) {
     const env = {
       arrowMetaLoaded: loadsModernArrowDefaults(ast.libraries, picture.packages || ast.packages),
       petriLoaded,
+      backgroundsLoaded,
+      // A body-level \tikzset can request a frame after an unpainted path.
+      trackLocalBounds: backgroundsLoaded,
+      pictureEndHooks: optionList(endPicture),
       positioningLoaded: ast.libraries?.some(lib => ["positioning", "chains"].includes(lib.name || lib)),
       foreachBudget,
       currentFont: pictureTransformEnv.currentFont,
@@ -405,8 +412,9 @@ export function interpretTikz(ast, options = {}) {
     for (const statement of picture.statements || []) {
       interpretStatement(statement, env, targetIr, diagnostics, options);
     }
+    if (env.pictureEndHooks.length) runPictureEndHooks(env.pictureEndHooks, backgroundsLoaded, targetIr, pictureStart, env, diagnostics, options);
     if (semanticOnly) continue;
-    if (tikzBoolean(pictureOptions.framed)) {
+    if (!backgroundsLoaded && tikzBoolean(pictureOptions.framed)) {
       addFramedPicture(targetIr, pictureStart, env);
     }
     if (isTabularPicture) {
@@ -459,8 +467,9 @@ function appendInlinePicture(documentIr, pictureIr, context) {
   const dy = 0;
   translateItems(allPictureItems, dx, dy);
   mergeTranslatedCoordinates(documentIr.coordinates, pictureIr.coordinates || {}, context.pictureIndex, dx, dy);
-  documentIr.backgroundItems.push(...(pictureIr.backgroundItems || []));
-  documentIr.items.push(...(pictureIr.items || []));
+  // Each TeX picture ships its own layer stack before the next picture.
+  // A later picture's frame must not paint behind the previous picture.
+  documentIr.items.push(...allPictureItems);
   const translatedBounds = translateBounds(bounds, dx, dy);
   return {
     cursorX: translatedBounds.maxX,
@@ -588,9 +597,9 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
         const centerX = tabularContentAnchorX(columns[column].align, contentLeft, contentWidth, width);
         const dx = centerX - (bounds.minX + width / 2);
         const dy = centerY - (bounds.minY + (bounds.maxY - bounds.minY) / 2);
-        translateItems([...(renderedPicture.pictureIr.backgroundItems || []), ...renderedPicture.pictureIr.items], dx, dy);
-        documentIr.backgroundItems.push(...(renderedPicture.pictureIr.backgroundItems || []));
-        documentIr.items.push(...(renderedPicture.pictureIr.items || []));
+        const items = [...(renderedPicture.pictureIr.backgroundItems || []), ...renderedPicture.pictureIr.items];
+        translateItems(items, dx, dy);
+        documentIr.items.push(...items);
       }
       if (cell.text) {
         const textLayout = tabularCellTextLayout(cell.text);
@@ -859,12 +868,58 @@ function evaluatePicturePgfMathMacros(macros = [], defaults = {}) {
   return variables;
 }
 
-function addFramedPicture(ir, pictureStart, env) {
-  const items = [
+function pictureItemsSince(ir, pictureStart) {
+  return [
     ...(ir.backgroundItems || []).slice(pictureStart.backgroundItemCount),
     ...(ir.items || []).slice(pictureStart.itemCount)
   ];
-  const bounds = computeItemsBoundingBox(items, null);
+}
+
+function runPictureEndHooks(hooks, libraryLoaded, ir, start, env, diagnostics, options) {
+  let frozen;
+  for (const code of optionList(hooks)) {
+    if (typeof code !== "string") continue;
+    const kind = libraryLoaded && backgroundFrameKind(code);
+    if (!kind) {
+      for (const statement of parseStatements(code, diagnostics)) interpretStatement(statement, env, ir, diagnostics, options);
+      continue;
+    }
+    // The first background hook saves the physical box. Later hooks do not
+    // measure the preceding frame's pen or any intervening end-hook paint.
+    env.transform = identityTransform();
+    if (frozen === undefined) {
+      const content = computeItemsBoundingBox(pictureItemsSince(ir, start), null,
+        (item, include) => includePictureItemBounds(item, include, includeItemBounds));
+      frozen = content && withDimensionFont(() => env.currentFont, () =>
+        backgroundFrameBounds(content, env.pictureOptions, length => parseFinitePgfLength(length, env, 0)));
+    }
+    if (!frozen) continue;
+    // pgfonlayer emits its 0.4pt pen reset before opening the layer box.
+    // A later main-layer hook keeps the main color but sees that reset pen.
+    env.pictureOptions = mergeOptionOrder({ ...env.pictureOptions }, { "line width": "0.4pt" });
+    const { operator, from, to, style } = backgroundFramePath(kind, frozen);
+    const coord = point => ({ kind: "coordinate", raw: `${point.x}cm,${point.y}cm` });
+    const layer = createSceneGraph({ backgroundItems: [] });
+    // Grid steps and rounded corners live in TeX registers; the backend
+    // pen, color, clipping path and canvas transform belong to the old layer.
+    const constructionOptions = Object.fromEntries(Object.entries(env.pictureOptions).filter(([key]) =>
+      /^(?:\/tikz\/)?(?:step|[xy] ?step|rounded corners|sharp corners)$/.test(key)));
+    const layerEnv = {
+      ...env, onBackgroundLayer: true, pictureOptions: constructionOptions, scopeClips: undefined,
+      pictureBoundsDisabled: env.pictureBoundsDisabled || Boolean(env.scopeClips),
+      canvasTransform: identityTransform(), canvasScale: 1, canvasTrackingDisabled: false, canvasPlaneBasis: undefined
+    };
+    interpretStatement({ type: "path", command: "path", options: { [style]: true },
+      path: { segments: [coord(from), { kind: "operator", value: operator }, coord(to)] } },
+    layerEnv, layer, diagnostics, options);
+    ir.backgroundItems.push(...layer.backgroundItems, ...layer.items);
+  }
+}
+
+// Retain the historical unpadded outline for documents that did not load
+// the library. Its shorthand is not the library's end-of-picture operation.
+function addFramedPicture(ir, pictureStart, env) {
+  const bounds = computeItemsBoundingBox(pictureItemsSince(ir, pictureStart), null);
   if (!bounds) return;
   const style = scaleCanvasStyle({ stroke: "black", fill: "none", lineWidth: lineWidthFromPt(0.4) }, env);
   ir.items.push(createPathShape(
@@ -1081,10 +1136,12 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
       ...(env.pics || {}),
       ...(statement.pics || picDefinitionsFromOptions(statement.styleOptions || {}))
     };
-    env.pictureOptions = {
-      ...(env.pictureOptions || {}),
-      ...tikzsetDirectOptions(statement.styleOptions || {})
-    };
+    const direct = tikzsetDirectOptions(statement.styleOptions || {});
+    if (env.backgroundsLoaded || Object.hasOwn(direct, "execute at end picture")) {
+      const { "execute at end picture": added, ...rest } = normalizeOptions("path", direct, env).options;
+      if (added) env.pictureEndHooks = [...(env.pictureEndHooks || []), ...optionList(added)];
+      env.pictureOptions = mergeOptionOrder({ ...env.pictureOptions }, rest);
+    } else env.pictureOptions = { ...env.pictureOptions, ...direct };
     return;
   }
   if (statement.type === "calendar") {
@@ -18754,7 +18811,7 @@ function computeCurrentBoundingBox(ir) {
   return computeItemsBoundingBox([...(ir.backgroundItems || []), ...(ir.items || [])]);
 }
 
-function computeItemsBoundingBox(items = [], fallback = { minX: 0, minY: 0, maxX: 0, maxY: 0 }) {
+function computeItemsBoundingBox(items = [], fallback = { minX: 0, minY: 0, maxX: 0, maxY: 0 }, measure = includeItemBounds) {
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   const include = (x, y) => {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
@@ -18764,7 +18821,7 @@ function computeItemsBoundingBox(items = [], fallback = { minX: 0, minY: 0, maxX
     bounds.maxY = Math.max(bounds.maxY, y);
   };
   for (const item of items) {
-    includeItemBounds(item, include);
+    measure(item, include);
   }
   if (!Number.isFinite(bounds.minX)) return fallback;
   return bounds;

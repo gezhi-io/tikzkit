@@ -235,6 +235,25 @@ Try the [weighted transition](../test/fixtures/native-petri/petri-manual-transit
 or [mutual-exclusion network](../test/fixtures/native-petri/mutual-exclusion.tex) in the checkout.
 See the [browser results alongside MacTeX and tikztosvg](qa/2026-11-25-native-petri.md#visual-results).
 
+## Picture Backgrounds
+
+Load `backgrounds` to frame the completed drawing. Here the grid is declared
+after the opaque yellow background, so it stays visible behind the ellipse.
+
+```tex
+\usetikzlibrary{backgrounds}
+\tikzset{background rectangle/.style={rounded corners,fill=yellow},
+         background grid/.style={thick,draw=red,step=.5cm}}
+\begin{tikzpicture}[framed,gridded]
+  \draw (0,0) ellipse (10mm and 5mm);
+\end{tikzpicture}
+```
+
+Try the [original manual input](../test/fixtures/native-backgrounds/backgrounds-manual-framed-gridded.tex)
+or [four individually extended sides](../test/fixtures/native-backgrounds/backgrounds-manual-four-sides.tex).
+See the [browser and native comparison](qa/2026-11-25-native-backgrounds.md#visual-results).
+This feature is in the GitHub version.
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

@@ -29,7 +29,7 @@ import { arrowBoxGeometry } from "../../tikz/libraries/shapes.arrows.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 import { curvedArrowPaint } from "./arrowBending.js";
 import { tubeGeometry } from "../../extensions/circuitikz/tubes.js";
-import { doublePenWidths } from "../../tikz/doubleStroke.js";
+import { strokePadding } from "../../tikz/doubleStroke.js";
 
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -439,13 +439,6 @@ function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit
 function pathStrokePadding(item, unit) {
   if (item.type === "bbox" && !item.includeStrokeBounds) return 0;
   return strokePadding(item.style, unit);
-}
-
-function strokePadding(style = {}, unit) {
-  if (style.stroke === "none") return 0;
-  const lineWidth = style.doubleColor === undefined ? Number(style.lineWidth) : doublePenWidths(style).outer;
-  if (!Number.isFinite(lineWidth) || lineWidth <= 0) return 0;
-  return lineWidth / unit / 2;
 }
 
 function hasPathCommands(item) {

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"backgrounds-manual-rectangle","title":"Default background rectangle","source":"backgrounds-manual-rectangle.tex","manualLines":[88,90]},
+    {"id":"backgrounds-manual-blue-rounded","title":"Rounded blue frame and fill","source":"backgrounds-manual-blue-rounded.tex","manualLines":[146,151]},
+    {"id":"backgrounds-manual-grid","title":"Default background grid","source":"backgrounds-manual-grid.tex","manualLines":[167,169]},
+    {"id":"backgrounds-manual-framed-gridded","title":"Red grid over a rounded yellow frame","source":"backgrounds-manual-framed-gridded.tex","manualLines":[190,194]},
+    {"id":"backgrounds-manual-four-sides","title":"Four extended background edges","source":"backgrounds-manual-four-sides.tex","manualLines":[242,250]},
+    {"id":"backgrounds-manual-styled-top","title":"Blue fill with a one-ex top rule","source":"backgrounds-manual-styled-top.tex","manualLines":[258,262]},
+    {"id":"backgrounds-manual-fancy","title":"Double red frame with a blue shade","source":"backgrounds-manual-fancy.tex","manualLines":[134,139]}
+  ]
+}
