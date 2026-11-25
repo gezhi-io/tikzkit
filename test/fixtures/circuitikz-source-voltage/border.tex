@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \draw[gray!35] (-1,-1) rectangle (4.1,3.1);
+  \ctikzset{bipoles/length=1.8cm, bipoles/vsource/width=.24, bipoles/vsource/height=.9,
+    bipoles/vsource/voltage/bump a/.initial=1.5, bipoles/vsource/voltage/additional shift/.initial=.15,
+    voltage=straight, voltage/straight label distance=1.8}
+  \draw (0,0) to[V=$U$,fill=cyan!20] (3,0);
+  \begin{scope}[circuitikz/current arrow scale=8]
+    \draw (0,2) to[V,v_<=$e$] (3,2);
+  \end{scope}
+\end{circuitikz}
+\end{document}

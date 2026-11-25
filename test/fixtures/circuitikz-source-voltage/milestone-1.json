@@ -1,0 +1,10 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "source-voltage-amplifier",
+    "source-voltage-directions",
+    "source-voltage-settings",
+    "source-voltage-tight",
+    "source-voltage-border"
+  ]
+}

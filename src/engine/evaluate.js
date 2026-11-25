@@ -4,7 +4,9 @@ import { layoutNativeMath } from "../tex/mathBox.js";
 import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont } from "../tex/textBox.js";
 import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
-import { fixedCapacitorItems, fixedCapacitorSettings, withCapacitorKeys } from "../extensions/circuitikz/capacitors.js";
+import { fixedCapacitorItems, fixedCapacitorSettings } from "../extensions/circuitikz/capacitors.js";
+import { withCircuitikzKeys } from "../extensions/circuitikz/settings.js";
+import { currarrowHead, generatorSettings, generatorVoltage } from "../extensions/circuitikz/sourceVoltage.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
@@ -354,7 +356,7 @@ export function interpretTikz(ast, options = {}) {
       styles,
       codeHandlers: { ...(picture.codeHandlers || {}) },
       pics: { ...(picture.pics || {}) },
-      circuitikz: withCapacitorKeys({
+      circuitikz: withCircuitikzKeys({
         ...circuitikzPackageSettings(picture.packages || ast.packages || []),
         ...normalizeCtikzSetOptions(picture.circuitikzOptions || {})
       }, pictureOptions),
@@ -1118,7 +1120,7 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
       ...env,
       variables: scopedVariables,
       transform: scopePlane?.transform || scopedTransform,
-      circuitikz: withCapacitorKeys(env.circuitikz, scopeOptions),
+      circuitikz: withCircuitikzKeys(env.circuitikz, scopeOptions),
       canvasTransform: scopedCanvasTransform,
       canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(scopeOptions)),
       canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
@@ -1554,7 +1556,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathPlane = canvasPlaneEnvironment(env, options, pathTransform);
   const pathEnv = {
     ...optionEnv,
-    circuitikz: withCapacitorKeys(env.circuitikz, statementTransformOptions),
+    circuitikz: withCircuitikzKeys(env.circuitikz, statementTransformOptions),
     pathLet: { points: {}, numbers: {} },
     variables: { ...(env.variables || {}) },
     transform: pathPlane?.transform || pathTransform,
@@ -1814,7 +1816,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     }
     if (segment.kind === "options") {
       const segmentOptions = resolveDynamicOptions(segment.options || {}, env);
-      env.circuitikz = withCapacitorKeys(env.circuitikz, segmentOptions);
+      env.circuitikz = withCircuitikzKeys(env.circuitikz, segmentOptions);
       Object.assign(effectivePathOptions, segmentOptions);
       Object.assign(styleHints, pathOptionStyleHints(effectivePathOptions, pathStyle, env));
       continue;
@@ -2894,6 +2896,8 @@ function drawPolyline(commands, points, startNodeRef, endNodeRef, env) {
 function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options = {}, localToOptions, env, pathStyle = {}, styleHints = null }) {
   const spec = circuitikzBipoleSpec(options, env);
   if (!spec || !from || !to) return null;
+  const generator = spec.kind === "voltageSource" && !circuitikzUsesAmericanVoltageSource(env)
+    ? generatorSettings(spec.sourceKind, withCircuitikzKeys(env.circuitikz, localToOptions), env.variables, nodeCanvasScale(options, env)) : null;
   const geometry = circuitikzSegmentGeometry(from, to);
   if (!geometry) return null;
 
@@ -2917,7 +2921,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "capacitor") {
     const settings = spec.variable ? circuitikzVariableCapacitorSettings(options, env) :
-      fixedCapacitorSettings(withCapacitorKeys(env.circuitikz, localToOptions), env.variables, nodeCanvasScale(options, env));
+      fixedCapacitorSettings(withCircuitikzKeys(env.circuitikz, localToOptions), env.variables, nodeCanvasScale(options, env));
     const bodyLength = spec.variable
       ? Math.min(settings.bodyLength, geometry.length * 0.78)
       : settings.gap;
@@ -2986,15 +2990,16 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     if (split.postLead) shapes.push(split.postLead);
     registerCircuitikzInductorNode(spec, geometry, settings, bodyLength, options, env);
   } else if (spec.kind === "voltageSource" || spec.kind === "controlledVoltageSource") {
-    const waveformSettings = spec.kind === "voltageSource" && ["sinusoidal", "square", "triangular"].includes(spec.sourceKind)
-      ? circuitikzWaveformSourceSettings("voltage", spec.sourceKind, options, env, spec.componentFill)
-      : spec;
+    const waveformSettings = generator
+      ? { ...generator, fill: spec.componentFill ?? circuitikzSourceClassFill(options, env) }
+      : spec.kind === "voltageSource" && ["sinusoidal", "square", "triangular"].includes(spec.sourceKind)
+        ? circuitikzWaveformSourceSettings("voltage", spec.sourceKind, options, env, spec.componentFill) : spec;
     const split = appendCircuitikzSplitWire(
       commands,
       from,
       to,
       geometry,
-      circuitikzBodyLength(spec.kind === "controlledVoltageSource" ? "controlledSource" : "voltageSource", geometry.length, env, waveformSettings),
+      generator?.bodyLength ?? circuitikzBodyLength(spec.kind === "controlledVoltageSource" ? "controlledSource" : "voltageSource", geometry.length, env, waveformSettings),
       pathStyle,
       styleHints,
       options,
@@ -3033,7 +3038,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
   appendCircuitikzAnnotationLabel(nodes, spec, geometry, options, env);
   appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
   appendCircuitikzFlowLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
-  appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
+  appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env, generator);
 
   return { from: roundPoint(from), to: roundPoint(to), drawnTo: roundPoint(to) };
 }
@@ -3261,6 +3266,7 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
     return {
       kind: "voltageSource",
       sourceKind: "plain",
+      componentFill: circuitikzComponentFill(options),
       label: circuitikzLabelValue(options.l) || null,
       voltageKey: voltage.key,
       voltageLabel: voltage.label
@@ -5222,25 +5228,26 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
   if (["sinusoidal", "square", "triangular"].includes(spec.sourceKind)) {
     return circuitikzWaveformSourceItems(geometry, "voltage", spec.sourceKind, pathStyle, env, waveformSettings);
   }
-  const radius = 0.42 * scale * circuitikzSourceScale(env);
-  const style = circuitikzComponentStyle(pathStyle, spec.componentFill);
+  const radius = waveformSettings?.halfAlong ?? 0.42 * scale * circuitikzSourceScale(env);
+  const normalRadius = waveformSettings?.halfNormal ?? radius;
+  const style = circuitikzComponentStyle(pathStyle, waveformSettings?.fill ?? spec.componentFill);
   const items = [
     {
       type: "path",
       subtype: "circuitikz-voltage-source",
       sourceKind: spec.sourceKind,
-      shape: "circle",
+      shape: radius === normalRadius ? "circle" : "ellipse",
       cx: geometry.mid.x,
       cy: geometry.mid.y,
       r: radius,
       style,
-      commands: circleToPath(geometry.mid.x, geometry.mid.y, radius)
+      commands: circuitikzWaveformEllipsePath(geometry, radius, normalRadius)
     }
   ];
   if (spec.sourceKind === "dc") {
     for (const along of [-0.2 * radius, 0.2 * radius]) {
-      const start = pointAlong(pointAlong(geometry.mid, geometry.u, along), geometry.n, -0.5 * radius);
-      const end = pointAlong(pointAlong(geometry.mid, geometry.u, along), geometry.n, 0.5 * radius);
+      const start = pointAlong(pointAlong(geometry.mid, geometry.u, along), geometry.n, -0.5 * normalRadius);
+      const end = pointAlong(pointAlong(geometry.mid, geometry.u, along), geometry.n, 0.5 * normalRadius);
       items.push({
         type: "path",
         subtype: "circuitikz-dc-voltage-source-plate",
@@ -5256,9 +5263,8 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
     return items;
   }
   if (!circuitikzUsesAmericanVoltageSource(env)) {
-    const lineHalf = 0.24 * scale;
-    const start = pointAlong(geometry.mid, geometry.u, -lineHalf);
-    const end = pointAlong(geometry.mid, geometry.u, lineHalf);
+    const start = pointAlong(geometry.mid, geometry.u, -radius);
+    const end = pointAlong(geometry.mid, geometry.u, radius);
     items.push({
       type: "path",
       subtype: "circuitikz-voltage-source-line",
@@ -6180,10 +6186,7 @@ function circuitikzCurrentArrowItems(geometry, extent, pathStyle = {}, options =
   const shaftEnd = pointAlong(geometry.mid, geometry.u, (config.shaftEnd ?? 0.7) * extent);
   const step = (1.4 * circuitikzLengthScale(env)) / circuitikzCurrentArrowScale(options, env);
   const arrowOrigin = pointAlong(geometry.mid, geometry.u, (config.arrowOrigin ?? 0.5) * extent);
-  const base = pointAlong(arrowOrigin, geometry.u, -0.7 * step);
   const tip = pointAlong(arrowOrigin, geometry.u, step);
-  const lower = pointNormal(base, geometry.n, -0.8 * step);
-  const upper = pointNormal(base, geometry.n, 0.8 * step);
 
   return [
     {
@@ -6192,18 +6195,7 @@ function circuitikzCurrentArrowItems(geometry, extent, pathStyle = {}, options =
       style,
       commands: [{ type: "moveTo", x: shaftStart.x, y: shaftStart.y }, { type: "lineTo", x: shaftEnd.x, y: shaftEnd.y }]
     },
-    {
-      type: "path",
-      subtype: config.headSubtype || "circuitikz-current-source-arrow-head",
-      style: { ...style, fill: style.stroke },
-      commands: [
-        { type: "moveTo", x: base.x, y: base.y },
-        { type: "lineTo", x: lower.x, y: lower.y },
-        { type: "lineTo", x: tip.x, y: tip.y },
-        { type: "lineTo", x: upper.x, y: upper.y },
-        { type: "closePath" }
-      ]
-    }
+    currarrowHead(tip, geometry.u, step, style, config.headSubtype || "circuitikz-current-source-arrow-head")
   ];
 }
 
@@ -6257,12 +6249,19 @@ function circuitikzFlowSpec(options = {}, env = {}) {
   return null;
 }
 
-function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, options = {}, pathStyle = {}, env = {}) {
+function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, options = {}, pathStyle = {}, env = {}, generator = null) {
   const voltage = circuitikzVoltageSpec(options, spec, env);
   if (!voltage) return;
   const { label } = voltage;
   const scale = circuitikzLengthScale(env);
   const normal = circuitikzVoltageNormal(geometry, voltage, spec);
+  if (generator) {
+    const { shapes: arrow, point, anchor } = generatorVoltage(geometry, normal,
+      circuitikzVoltageDirectionIsBackward(voltage, spec, env), generator, pathStyle);
+    shapes.push(...arrow);
+    addCircuitikzTextNode(nodes, point, label, { anchor, "inner sep": "2pt", "tikzkit layout bbox": true });
+    return;
+  }
   if (spec.kind === "controlledVoltageSource") {
     if (spec.sourceKind === "sinusoidal" && circuitikzUsesAmericanVoltageSource(env)) {
       appendCircuitikzAmericanSinusoidalVoltagePolarity(nodes, geometry, voltage, spec, normal, env);
@@ -6278,9 +6277,8 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
     return;
   }
   if (!circuitikzUsesAmericanVoltageSource(env)) {
-    shapes.push(circuitikzRpVoltageArrowItem(spec, geometry, voltage, normal, pathStyle, env));
-    const labelOffset = (spec.kind === "voltageSource" ? 0.78 : 0.78) * scale;
-    addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, labelOffset), label);
+    shapes.push(circuitikzPassiveVoltageArrowItem(geometry, voltage, normal, pathStyle, env));
+    addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, 0.78 * scale), label);
     return;
   }
 
@@ -6373,20 +6371,14 @@ function circuitikzVoltageNormal(geometry, voltage = {}, spec = {}) {
   return above ? geometry.n : { x: -geometry.n.x, y: -geometry.n.y };
 }
 
-function circuitikzRpVoltageArrowItem(spec, geometry, voltage, normal, pathStyle = {}, env = {}) {
+function circuitikzPassiveVoltageArrowItem(geometry, voltage, normal, pathStyle = {}, env = {}) {
   const scale = circuitikzLengthScale(env);
   const direction = voltage.key.includes(">") ? geometry.u : { x: -geometry.u.x, y: -geometry.u.y };
-  const offset = (spec.kind === "voltageSource" ? 0.56 : 0.42) * scale;
-  const center = pointNormal(geometry.mid, normal, offset);
-  const half = (spec.kind === "voltageSource" ? 0.32 : 0.74) * scale;
+  const center = pointNormal(geometry.mid, normal, 0.42 * scale);
+  const half = 0.74 * scale;
   const start = pointAlong(center, direction, -half);
   const end = pointAlong(center, direction, half);
-  const commands = spec.kind === "voltageSource"
-    ? [
-        { type: "moveTo", x: start.x, y: start.y },
-        { type: "lineTo", x: end.x, y: end.y }
-      ]
-    : circuitikzCurvedVoltageArrowCommands(start, end, normal, scale);
+  const commands = circuitikzCurvedVoltageArrowCommands(start, end, normal, scale);
   const stroke = pathStyle.stroke || "black";
   return {
     type: "path",
@@ -9955,7 +9947,7 @@ function normalizeCtikzSetOptions(rawOptions = {}) {
     }
     normalized[normalizedKey] = normalizedValue;
   }
-  return withCapacitorKeys(normalized, normalized);
+  return withCircuitikzKeys(normalized, normalized);
 }
 
 function picDefinitionsFromOptions(rawOptions = {}) {

@@ -1,0 +1,29 @@
+{
+  "cases": [
+    {
+      "id": "source-voltage-amplifier",
+      "source": "../circuitikz-tubes/amplifier.tex",
+      "title": "European generator voltage arrows in the triode amplifier"
+    },
+    {
+      "id": "source-voltage-directions",
+      "source": "directions.tex",
+      "title": "Forward, reversed, below and oblique voltage annotations"
+    },
+    {
+      "id": "source-voltage-settings",
+      "source": "settings.tex",
+      "title": "Generator arrow and label spacing, source scale and suppressed symbol"
+    },
+    {
+      "id": "source-voltage-tight",
+      "source": "tight.tex",
+      "title": "Two labelled vertical sources with native page bounds"
+    },
+    {
+      "id": "source-voltage-border",
+      "source": "border.tex",
+      "title": "Narrow generator border, per-shape settings and scoped arrowhead size"
+    }
+  ]
+}

@@ -6189,7 +6189,13 @@ test("renders circuitikz siunitx and RP voltage arrows used by case 863", () => 
   assert.ok(!labelText.includes("+"));
   assert.ok(!labelText.includes("-"));
   assert.equal(voltageArrows.length, 2);
-  assert.ok(voltageArrows.every((item) => item.style?.markerEnd), "expected RP voltage arrows to use arrow tips");
+  const [passive, generator] = voltageArrows;
+  assert.ok(passive.style.markerEnd, "the passive voltage curve ends in an arrow");
+  const head = ir.items.find(item => item.subtype === "circuitikz-voltage-arrow-head");
+  assert.equal(generator.style.markerEnd, undefined, "the currarrow node is painted separately");
+  assert.equal(head.commands[2].x, generator.commands.at(-1).x);
+  assert.equal(head.commands[2].y, generator.commands.at(-1).y);
+  assert.ok(head.commands[2].x > head.commands[0].x, "V< on a leftward path points right");
   assert.ok(question?.x > 1.55, `expected current label near the right lead, got x=${question?.x}`);
   assert.ok(currentArrow?.commands?.some((command) => Number(command.x) > 1.55), "expected current arrow near the right lead");
 });

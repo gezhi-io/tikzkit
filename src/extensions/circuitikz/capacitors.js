@@ -1,24 +1,6 @@
 import { evaluateMath, parseDimension, roundNumber, roundPoint } from "../../engine/math.js";
 import { normalizeColor } from "../../engine/colors.js";
 
-const keys = new Set(["bipoles/length", "bipoles/thickness", "bipoles/capacitor/width",
-  "bipoles/capacitor/height", "capacitors/scale", "capacitors/thickness", "capacitors/fill"]);
-
-// The class width/height keys assign the actual bipole keys. Resolve aliases
-// when a scope or command executes, so later assignments win in source order.
-export function withCapacitorKeys(state, options) {
-  let result = state;
-  for (const [raw, value] of Object.entries(options || {})) {
-    let key = raw.replace(/^(?:\/tikz\/)?circuitikz\//, "");
-    if (key === "capacitors/width") key = "bipoles/capacitor/width";
-    if (key === "capacitors/height") key = "bipoles/capacitor/height";
-    if (!keys.has(key)) continue;
-    if (result === state) result = { ...state };
-    result[key] = value;
-  }
-  return result;
-}
-
 export function fixedCapacitorSettings(keys = {}, variables, shapeScale = 1) {
   const number = (key, fallback) => {
     const raw = keys[key];
