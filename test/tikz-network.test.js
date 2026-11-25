@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { measuredMinRadiusCm } from "./helpers/round-node-minima.js";
 import test from "node:test";
 import { tikzToSvg } from "../src/index.js";
 import { tikzNetworkExtension } from "../src/internal.js";
@@ -55,10 +56,10 @@ test("expands tikz-network Vertex commands to styled named nodes", () => {
   assert.deepEqual(ir.coordinates.C, { x: 2, y: 0 });
   assert.equal(nodeBox(ir, "A").shape, "circle");
   assert.equal(nodeBox(ir, "A").style.fill, "#abd7e6");
-  assert.ok(Math.abs(nodeBox(ir, "A").width - parseDimension("0.6cm")) < 1e-6);
+  assert.ok(Math.abs(nodeBox(ir, "A").width - 2 * measuredMinRadiusCm(.6)) < 1e-9);
   assert.equal(nodeBox(ir, "C").style.fill, "red");
   assert.equal(nodeBox(ir, "C").style.opacity, 0.5);
-  assert.ok(Math.abs(nodeBox(ir, "C").width - parseDimension("0.4cm")) < 1e-6);
+  assert.ok(Math.abs(nodeBox(ir, "C").width - 2 * measuredMinRadiusCm(.4)) < 1e-9);
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "B"));
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "$C_1$"));
   assert.equal(ir.items.some((item) => item.type === "textNode" && item.text === "D"), false);
@@ -84,7 +85,7 @@ test("keeps tikz-network vertex labels from inflating the vertex shape", () => {
 \Vertex[x=1,label=LongLabel]{D}`);
 
   assert.equal(diagnostics.length, 0);
-  assert.ok(Math.abs(nodeBox(ir, "D").width - parseDimension(".65cm")) < 1e-6);
+  assert.ok(Math.abs(nodeBox(ir, "D").width - 2 * measuredMinRadiusCm(.65)) < 1e-9);
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "LongLabel"));
 });
 

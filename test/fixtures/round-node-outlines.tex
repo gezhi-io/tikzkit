@@ -1,0 +1,43 @@
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,automata}
+\newsavebox{\roundbox}
+\newdimen\ax
+\newdimen\ay
+\newcommand{\readanchor}[2]{%
+  \pgfextractx{\ax}{\pgfpointanchor{N}{#2}}%
+  \pgfextracty{\ay}{\pgfpointanchor{N}{#2}}%
+  \typeout{ANCHOR #1 #2: \the\ax\space\the\ay}}
+\newcommand{\probe}[4][]{%
+  \sbox{\roundbox}{\begin{tikzpicture}[#1]
+    \node[#3] (N) {#4};
+    \pgftransformreset
+    \readanchor{#2}{east}\readanchor{#2}{north}
+    \readanchor{#2}{north east}\readanchor{#2}{45}
+  \end{tikzpicture}}%
+  \typeout{PAGE #2: \the\wd\roundbox\space\the\dimexpr\ht\roundbox+\dp\roundbox\relax}}
+\begin{document}
+\probe{circle}{circle,minimum size=30pt,draw,line width=4pt,outer xsep=8pt,outer ysep=2pt}{}
+\probe{ellipse}{ellipse,minimum width=60pt,minimum height=30pt,draw,line width=4pt,outer xsep=8pt,outer ysep=2pt}{}
+\probe{lastsep}{circle,minimum size=30pt,draw,outer xsep=8pt,outer sep=1pt}{}
+\probe{state}{state,accepting,line width=2pt}{}
+\probe{override}{state,accepting,line width=2pt,outer sep=3pt}{}
+\probe{color}{circle,minimum size=30pt,draw=blue,fill=yellow,double=red,double distance=3pt,line width=2pt}{}
+\probe{rotate}{ellipse,minimum width=60pt,minimum height=30pt,draw,line width=4pt,rotate=30}{Box}
+\probe{invisible}{ellipse,minimum width=60pt,minimum height=30pt,rotate=30}{}
+\probe{silent}{circle,minimum size=30pt,rotate=45}{}
+\probe[scale=1.5,transform shape]{scaled}{ellipse,minimum width=60pt,minimum height=30pt,draw=blue,double=red,double distance=3pt,line width=2pt}{}
+\probe{localscale}{ellipse,minimum width=60pt,minimum height=30pt,draw=blue,scale=1.5,line width=2pt}{}
+\probe{negative}{ellipse,minimum width=60pt,minimum height=30pt,draw,outer sep=-2pt}{}
+\probe{textcircle}{circle,draw,minimum size=8pt,inner sep=2pt}{Center}
+\probe{textellipse}{ellipse,draw,inner sep=1pt,text height=12pt}{g}
+\probe{depth}{circle,draw,inner xsep=2pt,inner ysep=3pt,text depth=5pt}{Ag}
+\probe{reverse}{ellipse,minimum width=60pt,minimum height=30pt,rotate=-30}{}
+\probe{quadrant}{ellipse,minimum width=60pt,minimum height=30pt,rotate=135}{}
+\begin{tikzpicture}
+  \foreach \s in {0.2cm,0.4cm,0.6cm,0.65cm,1cm,8cm,8mm}{
+    \node[circle,minimum size=\s,inner sep=0pt,outer sep=0pt] (c) {};
+    \pgfextractx{\ax}{\pgfpointanchor{c}{east}}
+    \typeout{MINRADIUS \s: \number\ax sp}}
+\end{tikzpicture}
+\end{document}

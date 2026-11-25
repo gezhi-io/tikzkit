@@ -1,17 +1,10 @@
 import { roundedRectangleOutline } from "../../tikz/pathOperations/roundedCorners.js";
 import { formatSvgNumber as format } from "./format.js";
 import { svgPathData } from "./pathData.js";
-import { doubleStrokeStyles } from "./paths.js";
-import { styleAttributes } from "./style.js";
+import { paintNodeOutline } from "./nodeOutline.js";
 
-// Both passes follow exactly the same centerline, including rounded corners.
-// The inner pen never paints a second fill.
 export function renderRectangleNodeBox(item, unit) {
-  const geometry = rectangleGeometry(item, unit);
-  const paint = style => `${geometry}${styleAttributes(style)} />`;
-  if (item.style?.doubleColor === undefined || item.style.stroke === "none") return paint(item.style);
-  const { outerStyle, innerStyle } = doubleStrokeStyles(item.style);
-  return paint({ ...outerStyle, fill: item.style.fill }) + (innerStyle.lineWidth > 0 ? paint(innerStyle) : "");
+  return paintNodeOutline(rectangleGeometry(item, unit), item.style);
 }
 
 function rectangleGeometry(item, unit) {

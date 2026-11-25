@@ -75,7 +75,7 @@ export function renderNodeBoxShadow(item, shadow, unit) {
 
 export function renderNodeBoxOverlay(item, unit) {
   const overlays = [];
-  if (item.doubleColor !== undefined) overlays.push(renderDoubleNodeOutline(item, unit));
+  if (item.doubleColor !== undefined && item.style?.doubleColor === undefined) overlays.push(renderDoubleNodeOutline(item, unit));
   if (String(item.pathPicture || "").includes("path picture bounding box")) overlays.push(renderPathPictureOverlay(item, unit));
   if (item.appendAfterCommand) overlays.push(renderAppendAfterCommandOverlay(item, unit));
   if (item.bpmnIcon) overlays.push(renderBpmnIcon(item, unit));

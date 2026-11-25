@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { measuredMinRadiusCm } from "./helpers/round-node-minima.js";
 import { assertNativePlainText } from "./helpers/native-math-svg.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -2354,7 +2355,7 @@ test("supports TikZ orthogonal path operators with inline labels", () => {
   assert.equal(diagnostics.length, 0);
   assert.equal(path.commands.length, 3);
   expectClose(path.commands[0].x, 0);
-  expectClose(path.commands[0].y, 0.1 + parseDimension("0.2pt"));
+  expectClose(path.commands[0].y, measuredMinRadiusCm(.2) + parseDimension("0.2pt"));
   assert.deepEqual(path.commands[1], { type: "lineTo", x: 0, y: 1 });
   assert.equal(path.commands[2].type, "lineTo");
   assert.ok(path.commands[2].x > 0.84 && path.commands[2].x < 1, `expected final segment to stop at target node border, got ${path.commands[2].x}`);
@@ -5927,10 +5928,10 @@ test("renders edge operations attached to node statements", () => {
   assert.equal(edge.style.markerStart.kind, "stealth");
   const outerSep = parseDimension("0.2pt");
   assert.equal(edge.commands[0].type, "moveTo");
-  expectClose(edge.commands[0].x, 1.5 - outerSep);
+  expectClose(edge.commands[0].x, 2 - measuredMinRadiusCm(1) - outerSep);
   expectClose(edge.commands[0].y, 0);
   assert.equal(edge.commands[1].type, "lineTo");
-  expectClose(edge.commands[1].x, 0.5 + outerSep);
+  expectClose(edge.commands[1].x, measuredMinRadiusCm(1) + outerSep);
   expectClose(edge.commands[1].y, 0);
 });
 
@@ -5952,11 +5953,11 @@ test("keeps repeated node-attached edges rooted at the source node", () => {
   const outerSep = parseDimension("0.2pt");
   const starts = edges.map((edge) => edge.commands[0]);
   assert.equal(starts[0].type, "moveTo");
-  expectClose(starts[0].x, 1.5 - outerSep);
+  expectClose(starts[0].x, 2 - measuredMinRadiusCm(1) - outerSep);
   expectClose(starts[0].y, 0);
   assert.equal(starts[1].type, "moveTo");
   expectClose(starts[1].x, 2);
-  expectClose(starts[1].y, 0.5 + outerSep);
+  expectClose(starts[1].y, measuredMinRadiusCm(1) + outerSep);
 });
 
 test("renders the circuitikz current shunt bipoles used by case 869", () => {

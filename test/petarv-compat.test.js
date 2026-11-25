@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { measuredMinRadiusCm } from "./helpers/round-node-minima.js";
 import test from "node:test";
 import { assertNativePlainText, assertNativeText } from "./helpers/native-math-svg.js";
 import { layoutNativeMath } from "../src/tex/mathBox.js";
@@ -214,7 +215,7 @@ test("clips default node-to-node paths to shape borders", () => {
   assert.equal(diagnostics.length, 0);
   expectClose(path.commands[0].x, 1 + outerSep);
   expectClose(path.commands[0].y, 0);
-  expectClose(path.commands[1].x, 3.5 - outerSep);
+  expectClose(path.commands[1].x, 4 - measuredMinRadiusCm(1) - outerSep);
   expectClose(path.commands[1].y, 0);
 });
 
@@ -436,9 +437,9 @@ test("does not reapply current transforms to named node path references", () => 
   const outerSep = parseDimension("0.2pt");
 
   assert.equal(diagnostics.length, 0);
-  expectClose(path.commands[0].x, 1.6 + outerSep);
+  expectClose(path.commands[0].x, 1.5 + measuredMinRadiusCm(.2) + outerSep);
   expectClose(path.commands[0].y, 0.25);
-  expectClose(path.commands[1].x, 4.4 - outerSep);
+  expectClose(path.commands[1].x, 4.5 - measuredMinRadiusCm(.2) - outerSep);
   expectClose(path.commands[1].y, 0.25);
 });
 
@@ -1797,9 +1798,9 @@ test("clips paths between numeric node names to node borders", () => {
   const outerSep = parseDimension("0.2pt");
 
   assert.equal(diagnostics.length, 0);
-  expectClose(path.commands[0].x, 0.5 + outerSep);
+  expectClose(path.commands[0].x, measuredMinRadiusCm(1) + outerSep);
   expectClose(path.commands[0].y, 0);
-  expectClose(path.commands[1].x, 3.5 - outerSep);
+  expectClose(path.commands[1].x, 4 - measuredMinRadiusCm(1) - outerSep);
   expectClose(path.commands[1].y, 0);
 });
 

@@ -4,7 +4,7 @@ import {
   createArrowTip,
   lineWidthFromTikzDimension
 } from "../tikz/metrics.js";
-import { parseDimension, substituteTextVariables } from "./math.js";
+import { normalizeImplicitLengthProducts, parseDimension, substituteTextVariables } from "./math.js";
 import { evaluateRestrictedExpression } from "./safe-expression.js";
 import { normalizePositioningKey, positioningRegisterName } from "../tikz/positioningKeys.js";
 import { isColorToken, normalizeColor, normalizePgfRgbColor, normalizeShadingColor } from "./colors.js";
@@ -507,15 +507,19 @@ function resolveToAliases(style, env = {}) {
   return style;
 }
 
-function substituteDynamicOptionValues(options, variables) {
+export function substituteDynamicOptionValues(options, variables = {}, normalizeProducts = false) {
   const substituted = {};
   for (const [key, value] of Object.entries(options || {})) {
-    const nextKey = substituteTextVariables(key, variables);
-    const nextValue = Array.isArray(value)
-      ? value.map((entry) => typeof entry === "string" ? substituteTextVariables(entry, variables) : entry)
-      : typeof value === "string"
-        ? substituteTextVariables(value, variables)
-        : value;
+    const nextKey = substituteTextVariables(key, variables).trim();
+    // The shape reads outer sep after all keys (including line width) ran.
+    // Freezing \pgflinewidth during style expansion uses the surrounding pen.
+    let scope = variables;
+    if (Object.hasOwn(variables, "pgflinewidth") && /^(?:outer sep|outer [xy]sep)$/.test(nextKey)) {
+      scope = { ...variables };
+      delete scope.pgflinewidth;
+    }
+    const expand = v => typeof v === "string" ? substituteTextVariables(normalizeProducts ? normalizeImplicitLengthProducts(v) : v, scope) : v;
+    const nextValue = Array.isArray(value) ? value.map(expand) : expand(value);
     setOrderedOption(substituted, nextKey, nextValue);
   }
   return substituted;

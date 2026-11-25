@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"initial-accepting-states","title":"Initial and accepting states (original gallery)","source":"../../examples/automata/initial-accepting-states.tex"},
+    {"id":"feed-forward-perceptron","title":"Feed-forward perceptron (original gallery)","source":"../../examples/latex-examples/feed-forward-perceptron.tex"},
+    {"id":"outer-seps","title":"Unequal outer separation and fixed ray","source":"../outer-seps.tex"},
+    {"id":"double-circle","title":"Red circle with blue center band","source":"../double-circle.tex"},
+    {"id":"ellipse-30","title":"30 degree ellipse, scaled shape and thick pen","source":"../ellipse-30.tex"},
+    {"id":"ellipse-45-fill","title":"45 degree fill-only ellipse","source":"../ellipse-45-fill.tex"}
+  ]
+}

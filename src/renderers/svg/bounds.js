@@ -1,4 +1,6 @@
 import { includePathCommandBounds } from "../../scene/index.js";
+import { pgfEllipseBounds } from "../../pgf/ellipseBounds.js";
+import { isRoundNode } from "../../tikz/roundNodeGeometry.js";
 import { blurShadowBoundsPadding } from "./defs.js";
 import { includeDecorationTextNodeBounds } from "./decorationText.js";
 import { isEmptyNormalizedTikzText, mathFallbackText, normalizeTikzText } from "../../tikz/text.js";
@@ -91,7 +93,9 @@ export function computeSvgBounds(items, options = {}) {
           : item.shape === "starburst"
             ? starburstGeometry(item, item.shapeData || {}).bounds
           : geometricBounds;
-      includeRotatedRectangleBounds(
+      if (isRoundNode(item.shape)) {
+        includeRoundLayout(item, item.width, item.height, pen, include);
+      } else includeRotatedRectangleBounds(
         symbolBounds ? item.x + symbolBounds.minX - strokePad - foregroundOuterX : item.x - item.width / 2 - strokePad - foregroundOuterX,
         symbolBounds ? item.y + symbolBounds.minY - strokePad - foregroundOuterY : item.y - item.height / 2 - strokePad - foregroundOuterY,
         symbolBounds ? item.x + symbolBounds.maxX + strokePad + foregroundOuterX : item.x + item.width / 2 + strokePad + foregroundOuterX,
@@ -255,6 +259,10 @@ function includeTextNodeLayoutBounds(item, include) {
   const width = Number(item.nodeLayoutWidth);
   const height = Number(item.nodeLayoutHeight);
   if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0) return;
+  if (isRoundNode(item.nodeLayoutShape)) {
+    includeRoundLayout(item, width, height, 0, include);
+    return;
+  }
   includeRotatedRectangleBounds(
     item.x - width / 2,
     item.y - height / 2,
@@ -265,6 +273,12 @@ function includeTextNodeLayoutBounds(item, include) {
     item.y,
     include
   );
+}
+
+function includeRoundLayout(item, width, height, pen, include) {
+  const b = pgfEllipseBounds(width / 2, height / 2, item.rotation);
+  include(item.x + b.minX - pen, item.y + b.minY - pen);
+  include(item.x + b.maxX + pen, item.y + b.maxY + pen);
 }
 
 export function includeTextRenderBounds(item, width, height, include) {

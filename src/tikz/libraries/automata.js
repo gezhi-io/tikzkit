@@ -1,12 +1,13 @@
 export const tikzLibrary = {
   "name": "automata",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:BUILTIN_STYLES + nodeShape + diamondLayoutSize + addAutomataInitialArrow + addAutomataAcceptingArrow + circleSplitLayout/circleSplitPartMetric/circleSplitLocalAnchor",
+  "implementedBy": "src/engine/evaluate.js:BUILTIN_STYLES + nodeShape + diamondLayoutSize + addAutomataInitialArrow + addAutomataAcceptingArrow + circleSplitLayout/circleSplitPartMetric/circleSplitLocalAnchor; src/tikz/roundNodeGeometry.js; src/renderers/svg/nodeOutline.js",
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryautomata.code.tex",
+  "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-automata.tex",
   "features": [
     "state / state without output",
     "state with output / circle split",
-    "accepting double outline",
+    "accepting by double: coincident pens, white or colored gap, and separate line-width-dependent outer anchors on ordinary states",
     "accepting arrows at the default, above, below, left, and right positions",
     "accepting distance",
     "default and custom accepting text",
@@ -20,6 +21,7 @@ export const tikzLibrary = {
     "state",
     "state with output",
     "accepting",
+    "accepting by double",
     "accepting by arrow",
     "accepting above",
     "accepting below",
@@ -36,5 +38,5 @@ export const tikzLibrary = {
     "initial distance",
     "initial text"
   ],
-  "notes": "`state with output` now inherits the source-derived circle-split `text`/`lower` TeX-box geometry, including the actual lower-box origin used by `(state.lower)` paths. Every initial/accepting by arrow inherits its documented path-local text, stroke, line, dash, opacity, and arrow styles. Path-local geometry keys beyond the shared renderer subset remain partial. As in PGF, automata itself does not load shapes.geometric; sources using initial by diamond must load it."
+  "notes": "`state with output` now inherits the source-derived circle-split `text`/`lower` TeX-box geometry, including the actual lower-box origin used by `(state.lower)` paths. Every initial/accepting by arrow inherits its documented path-local text, stroke, line, dash, opacity, and arrow styles. Path-local geometry keys beyond the shared renderer subset remain partial. As in PGF, automata itself does not load shapes.geometric; sources using initial by diamond must load it. Ordinary accepting circles now use two coincident pens and the native separate outer anchors. The round-node visual audit measures the original PDF, local tikztosvg and Chrome; initial-arrow label spacing is not certified."
 };

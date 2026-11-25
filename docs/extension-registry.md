@@ -317,6 +317,8 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 ## Core TikZ Tracking
 
+Round nodes and automata: [native radii, named anchors, rotated pages and accepting-state double borders](qa/2026-11-25-native-round-nodes.md).
+
 Rectangle nodes: [painted outlines, double borders and rotated page bounds](qa/2026-11-25-native-rectangle-outlines.md).
 
 Node positioning: [implicit borders, fixed targets and ordered distance vectors](qa/2026-11-25-native-positioning.md).

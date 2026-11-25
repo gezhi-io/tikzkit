@@ -1,5 +1,5 @@
 import { applyPathDecoration, supportedPathDecoration, decoratedSnakeOmitsArrowPaintBounds } from "../tikz/decorations/path.js";
-import { parseFinitePgfLength } from "./units.js";
+import { literalRegisterLengthCm, parseFinitePgfLength } from "./units.js";
 import { coordinateComponentHasDimension, parseCoordinateCanvasDimension, parseCoordinateFactor, resolveImplicitTwoPartCoordinate } from "./coordinateComponents.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
 import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont } from "../tex/textBox.js";
@@ -10,6 +10,8 @@ import { fixedResistorItem, fixedResistorSettings } from "../extensions/circuiti
 import { passiveLabelLayout } from "../extensions/circuitikz/passiveLabels.js";
 import { withCircuitikzKeys } from "../extensions/circuitikz/settings.js";
 import { emptyRectangleSize, isPlainRectangle } from "../tikz/emptyRectangle.js";
+import { isRoundNode, roundNodeSize } from "../tikz/roundNodeGeometry.js";
+import { nodeBoxDimensions } from "../tikz/nodeDimensions.js";
 import { doubleStrokeOptions } from "../tikz/doubleStroke.js";
 import { currarrowHead, generatorSettings, generatorVoltage } from "../extensions/circuitikz/sourceVoltage.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
@@ -181,6 +183,7 @@ import {
   splitTopLevel,
   styleDefinitionsFromOptions,
   stripOuterBraces,
+  substituteDynamicOptionValues,
   tikzBoolean
 } from "./options.js";
 import {
@@ -226,7 +229,7 @@ const BUILTIN_STYLES = {
   // state shape, then adds the double outline. Initial and accepting arrows
   // are after-node paths, so retain their direction until the node boundary
   // is known.
-  "accepting by double": { double: true },
+  "accepting by double": { double: true, "outer sep": ".5\\pgflinewidth+.3pt" },
   accepting: { "accepting by double": true },
   "accepting by arrow": { "tikzkit automata accepting": true, "tikzkit automata accepting angle": 0 },
   "accepting above": { "accepting by arrow": true, "tikzkit automata accepting angle": 90 },
@@ -10031,9 +10034,10 @@ function addNodeItemsWithFont(node, ir, env) {
   const overlay = tikzBoolean(node.options?.overlay ?? semantic.overlay);
   const shape = nodeShape(node.options || {});
   const plainRectangle = isPlainRectangle(node.options || {}, shape);
-  // transform shape scales a rectangle's background coordinates and text.
+  const nativeOutline = plainRectangle || isRoundNode(shape);
+  // transform shape scales the background coordinates and text.
   // Only a backend canvas transform scales its physical pen, gap and corner inset.
-  const paintEnv = plainRectangle ? env : nodeEnv;
+  const paintEnv = nativeOutline ? env : nodeEnv;
   const scaledStyle = scaleCanvasStyle(rawStyle, paintEnv);
   const patternDefinition = scaledStyle.pattern ? nodeEnv.patterns?.[scaledStyle.pattern] : null;
   const style = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
@@ -10187,6 +10191,7 @@ function addNodeItemsWithFont(node, ir, env) {
       )
     });
   } else if (style.fill !== "none" || style.stroke !== "none" || semantic.draw || shadedFill) {
+    const doubleStyle = nativeOutline && style.stroke !== "none" ? doublePathStyle(semantic, paintEnv, style.lineWidth) : {};
     ir.items.push({
       type: "nodeBox",
       id: node.name,
@@ -10208,7 +10213,8 @@ function addNodeItemsWithFont(node, ir, env) {
       bpmnMarker: semantic["bpmn marker"],
       tikzquadsKind: semantic["tikzquads kind"],
       tikzquadsOptions: tikzquadsNodeOptions(semantic),
-      doubleColor: plainRectangle || semantic.double === undefined ? undefined : semantic.double || "white",
+      doubleColor: plainRectangle || semantic.double === undefined || (nativeOutline && doubleStyle.doubleColor === undefined)
+        ? undefined : semantic.double || "white",
       shadows: nodeGeneralShadows({ ...node.options, ...semantic }, nodeEnv, style),
       parts: shape === "rectangleSplit" ? node.rectangleSplit?.count || rectangleSplitParts(semantic) : undefined,
       rectangleSplitHorizontal: shape === "rectangleSplit" ? node.rectangleSplit?.horizontal : undefined,
@@ -10234,7 +10240,7 @@ function addNodeItemsWithFont(node, ir, env) {
         stroke: semantic.draw || style.stroke !== "none" ? style.stroke || "black" : "none",
         fill: shadedFill || style.fill,
         lineWidth: style.lineWidth ?? 1,
-        ...(plainRectangle && style.stroke !== "none" ? doublePathStyle(semantic, paintEnv, style.lineWidth) : {}),
+        ...doubleStyle,
         lineJoin: style.lineJoin,
         lineCap: style.lineCap,
         miterLimit: style.miterLimit,
@@ -10276,10 +10282,10 @@ function addNodeItemsWithFont(node, ir, env) {
       x: textPoint.x,
       y: textPoint.y,
       text: renderedNodeText,
-      // Preserve the public node and its logical geometry, without adding a
-      // second scene item for the unpainted PGF rectangular background path.
+      // Even without any ink PGF includes the background path in the picture.
       ...(!renderedNodeText.trim() && ir.items.length === firstItemIndex && !skipsImplicitLayoutBounds &&
-        isPlainRectangle(node.options || {}, shape) ? { retainEmptyLayout: true } : {}),
+        nativeOutline ? { retainEmptyLayout: true } : {}),
+      ...(isRoundNode(shape) ? { nodeLayoutShape: shape } : {}),
       font: textFont,
       style: textStyle,
       rotation: rotation || undefined,
@@ -11688,6 +11694,14 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
   if (nearTicklabelShift) return nearTicklabelShift;
   const textAnchor = textAnchorKind(anchor);
   const shape = nodeShape(options);
+  if (isRoundNode(shape) && (/^(?:north|south)(?: (?:east|west))?$|^(?:east|west)$/.test(anchor) || Number.isFinite(Number(anchor)))) {
+    const outer = nodeOuterSep(options, env);
+    const scale = canvasLengthScale(env) * nodeOptionScale(options, env);
+    // Placing by an anchor is the inverse of reading it after placement.
+    const offset = nodeAnchorCoordinate({ shape, rotation, point: { x: 0, y: 0 },
+      width: size.width + 2 * outer.x * scale, height: size.height + 2 * outer.y * scale }, anchor, env);
+    return { x: -offset.x, y: -offset.y };
+  }
   if (shape === "circleSolidus" || shape === "ellipseSplit" || shape === "diamondSplit") {
     const multipartAnchor = customNodeLocalAnchor(shape, anchor, { ...size, shapeData });
     if (multipartAnchor) {
@@ -11814,17 +11828,7 @@ function resolveDynamicName(name, env) {
 }
 
 function resolveDynamicOptions(options = {}, env) {
-  const resolved = {};
-  for (const [key, value] of Object.entries(options || {})) {
-    const resolvedKey = substituteTextVariables(String(key), env.variables).trim();
-    const resolvedValue = Array.isArray(value)
-      ? value.map((entry) => typeof entry === "string" ? substituteTextVariables(normalizeImplicitLengthProducts(entry), env.variables) : entry)
-      : typeof value === "string"
-        ? substituteTextVariables(normalizeImplicitLengthProducts(value), env.variables)
-        : value;
-    resolved[resolvedKey] = resolvedValue;
-  }
-  return resolved;
+  return substituteDynamicOptionValues(options, env.variables, true);
 }
 
 function defaultPathNodeReference(raw, env) {
@@ -14292,6 +14296,10 @@ function estimateTkzAxisTickLabelSize(text, options = {}, env = { variables: {} 
 function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
   const size = visibleSize || estimateNodeLayoutSize(text, options, env);
   const outerSep = nodeOuterSep(options, env);
+  if (isRoundNode(nodeShape(options))) {
+    const scale = nodeOptionScale(options, env);
+    return { width: size.width + 2 * outerSep.x * scale, height: size.height + 2 * outerSep.y * scale };
+  }
   if (nodeShape(options) === "diamond") {
     const scale = nodeOptionScale(options, env);
     const geometry = geometricDiamondGeometry(size, {
@@ -14563,6 +14571,17 @@ function nodeOuterSep(options = {}, env = { variables: {} }) {
       !options["tikzkit tex node anchors"] && !nodeUsesBoxSizing(options, env)) return { x: 0, y: 0 };
   const { style } = normalizeOptions("node", options, env);
   const defaultSep = Math.max(0, (Number(style.lineWidth) || 0) / TIKZ_UNIT / 2);
+  if (isRoundNode(nodeShape(options))) {
+    const lengthEnv = { ...env, variables: { ...env.variables, pgflinewidth: `${2 * defaultSep}cm` } };
+    let x = defaultSep, y = defaultSep;
+    for (const [key, value] of Object.entries(options)) {
+      if (key === "outer sep") x = y = parseOuterSepDimension(value, defaultSep, lengthEnv);
+      else if (key === "outer xsep") x = parseOuterSepDimension(value, defaultSep, lengthEnv);
+      else if (key === "outer ysep") y = parseOuterSepDimension(value, defaultSep, lengthEnv);
+    }
+    // A circle saves one radius; an ellipse saves two independent radii.
+    return nodeShape(options) === "circle" ? { x: Math.max(x,y), y: Math.max(x,y) } : { x, y };
+  }
   return {
     x: parseOuterSepDimension(options["outer xsep"] ?? options["outer sep"], defaultSep, env),
     y: parseOuterSepDimension(options["outer ysep"] ?? options["outer sep"], defaultSep, env)
@@ -14761,12 +14780,26 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   if (options["tikzcd label"]) return estimateTikzCdLabelSize(text, options, env);
   const normalized = normalizeTikzText(text, env);
   const shapeScale = nodeOptionScale(options, env);
+  const shape = nodeShape(options);
+  const ordinaryRound = isRoundNode(shape) && !(shape === "circle" && options.cross);
+  const dimension = value => {
+    const literal = literalRegisterLengthCm(value);
+    return Number.isFinite(literal) ? literal : parseNodeLengthDimension(value, env);
+  };
+  const roundLayout = (width, height, depth) => {
+    if (options["text depth"] !== undefined) depth = dimension(options["text depth"]);
+    if (options["text height"] !== undefined) height = dimension(options["text height"]);
+    return scaleSize(roundNodeSize(shape, { ...nodeBoxDimensions(options, dimension),
+      width: options["text width"] === undefined ? width : dimension(options["text width"]),
+      height: height + depth, depth }), shapeScale);
+  };
   const unscaledTextMetricScale = nodeTextMetricScaleForText(
     normalized,
     nodeFontScaleForText(normalized, options, env) / shapeScale
   );
   if (normalized.kind === "image") {
     const contentScale = nodeFontScale(options, env) / shapeScale;
+    if (ordinaryRound) return roundLayout(normalized.width * contentScale, normalized.height * contentScale, 0);
     const innerSep = parseNodeLengthDimension(options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
     let width = normalized.width * contentScale + innerSep * 2;
     let height = normalized.height * contentScale + innerSep * 2;
@@ -14782,7 +14815,17 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       height: roundNumber(height)
     }, shapeScale);
   }
-  const shape = nodeShape(options);
+  if (ordinaryRound) {
+    if (!normalized.text.trim() && !normalized.raw?.trim()) return roundLayout(0, 0, 0);
+    const font = resolvedTextFontSpec(text, options, env);
+    const { options: keys, semantic } = normalizeOptions("node", options, env);
+    const alignment = normalizedNodeTextAlign(keys.align, semantic);
+    const native = options["text width"] !== undefined
+      ? layoutNativeScopedParagraph(normalized, font, dimension(options["text width"]) * TEX_PT_PER_CM, alignment,
+        nodeTextWrapMode(keys, semantic) !== "flush")
+      : layoutMultilineTeXText(normalized, font, alignment) || layoutNativeTextRun(normalized, font);
+    if (native) return roundLayout(native.width / TEX_PT_PER_CM, native.height / TEX_PT_PER_CM, native.depth / TEX_PT_PER_CM);
+  }
   const isCircleShape = shape === "circle" || shape === "circleCrossSplit" || isSymbolForbiddenSignShape(shape) || shape === "magnifyingGlass";
   const typewriter = nodeUsesTypewriterFont(normalized, options, env);
   const inlineMathLabelMetrics = Boolean(options["tikzkit inline math label metrics"]);
@@ -14928,8 +14971,10 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       : Math.max(textBox.height, paragraphHeight);
     textBox.width = Math.min(textBox.width, textWidth);
   }
-  // Claude: 空圆里带 cross（⊗ 乘法器/混频符号，如 case 037）若按 inner sep 撑，会小到几乎看不见。
-  // 给它一个合理的默认直径，让 ⊗ 有正常大小；普通空圆（如 dropout 节点）仍保持小。
+  // When a TeX box is unavailable, retain the content measurement fallback
+  // but let the native shape construction determine the enclosing border.
+  if (ordinaryRound) return roundLayout(isEmptyText ? 0 : textBox.width, isEmptyText ? 0 : textBox.height, 0);
+  // A cross inside a compound circular symbol needs room for its foreground.
   const pgfCircleDiameter = 2 * pgfNormalisedVectorLength(textBox.width / 2 + innerXSep, textBox.height / 2 + innerYSep);
   const emptyCircleDiameter = Math.max(parseDimension("1pt", env.variables), 2 * pgfNormalisedVectorLength(innerXSep, innerYSep));
   const emptyCircleSize = options.cross ? Math.max(0.42, emptyCircleDiameter) : emptyCircleDiameter;
@@ -15106,23 +15151,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "diamond" && !options["bpmn gateway"]) {
     ({ width, height } = diamondLayoutSize(width, height, options, env));
-  } else if (shape === "ellipse") {
-    // PGF's ellipse `radius` anchor scales the content radius by sqrt(2) and
-    // only then clamps it against `minimum width`/`minimum height`
-    // (pgflibraryshapes.geometric.code.tex). Keeping that order matters: a
-    // declared minimum smaller than the circumscribed content must not shrink
-    // the ellipse, otherwise the text overlaps the outline.
-    const minWidth = options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : NaN;
-    const minHeight = options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : NaN;
-    const minSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : NaN;
-    width = width * Math.SQRT2;
-    height = height * Math.SQRT2;
-    if (Number.isFinite(minWidth)) width = Math.max(width, minWidth);
-    if (Number.isFinite(minHeight)) height = Math.max(height, minHeight);
-    if (Number.isFinite(minSize)) {
-      width = Math.max(width, minSize);
-      height = Math.max(height, minSize);
-    }
   } else {
     if (options["minimum width"]) width = Math.max(width, parseNodeLengthDimension(options["minimum width"], env));
     if (options["minimum height"]) height = Math.max(height, parseNodeLengthDimension(options["minimum height"], env));
@@ -18582,8 +18610,10 @@ function shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight) {
     const length = Math.hypot(dx, dy) || 1;
     return { x: (dx / length) * radius, y: (dy / length) * radius };
   }
-  const scale = 1 / Math.sqrt((dx * dx) / (halfWidth * halfWidth) + (dy * dy) / (halfHeight * halfHeight));
-  return { x: dx * scale, y: dy * scale };
+  // Named diagonals use the ellipse parameter angle. Only numeric anchors
+  // and automatic edge endpoints intersect a ray with the border.
+  const factor = dx && dy ? .707107 : 1;
+  return { x: dx * halfWidth * factor, y: dy * halfHeight * factor };
 }
 
 function arrowNodeLocalAnchor(shape, anchor, size) {
@@ -18688,7 +18718,7 @@ function cornerPoint(points, xSign, ySign) {
 }
 
 function angleAnchor(node, angle, halfWidth, halfHeight) {
-  const radians = (angle * Math.PI) / 180;
+  const radians = ((angle + (isRoundNode(node.shape) ? Number(node.rotation) || 0 : 0)) * Math.PI) / 180;
   return nodeBorderPoint(node, node.point, {
     x: node.point.x + Math.cos(radians),
     y: node.point.y + Math.sin(radians)

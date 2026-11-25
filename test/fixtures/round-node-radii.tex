@@ -1,0 +1,63 @@
+% pdflatex -halt-on-error -output-directory=<temporary directory> round-node-radii.tex
+% ROUNDNODE lines give the full centerline diameters in integer scaled points.
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric}
+\makeatletter
+% label, box width/height/depth, inner x/ysep, minimum width/height
+\newcommand{\RoundProbe}[8]{%
+  \begingroup
+  \pgfkeys{/pgf/.cd,inner xsep=#5,inner ysep=#6,minimum width=#7,minimum height=#8,outer sep=0pt}%
+  \foreach \kind in {circle,ellipse}{%
+    % Set the registers after packing: an hbox around a negative-depth rule
+    % would report zero depth, unlike TikZ's explicit text depth override.
+    \setbox\pgfnodeparttextbox=\hbox{}%
+    \wd\pgfnodeparttextbox=#2\relax
+    \ht\pgfnodeparttextbox=#3\relax
+    \dp\pgfnodeparttextbox=#4\relax
+    \pgfmultipartnode{\kind}{center}{probe}{\pgfusepath{discard}}%
+    \pgf@process{\pgfpointdiff{\pgfpointanchor{probe}{west}}{\pgfpointanchor{probe}{east}}}%
+    \edef\diameterx{\number\pgf@x}%
+    \pgf@process{\pgfpointdiff{\pgfpointanchor{probe}{south}}{\pgfpointanchor{probe}{north}}}%
+    \typeout{ROUNDNODE #1 \kind\space \diameterx\space \number\pgf@y}%
+  }%
+  \endgroup
+}
+\makeatother
+\begin{document}
+\begin{pgfpicture}
+\RoundProbe{wide}{84.5pt}{3.25pt}{1.5pt}{2.375pt}{.875pt}{0pt}{0pt}
+\RoundProbe{tall}{1.75pt}{54pt}{3.25pt}{.625pt}{3.125pt}{0pt}{0pt}
+\RoundProbe{bucket-wide}{41.5pt}{6pt}{1pt}{2pt}{1.5pt}{0pt}{0pt}
+\RoundProbe{bucket-tall}{5.5pt}{92.25pt}{6.25pt}{2pt}{4.5pt}{0pt}{0pt}
+\RoundProbe{padded}{13pt}{3.75pt}{2.25pt}{3.25pt}{6.5pt}{0pt}{0pt}
+\RoundProbe{x-min}{5.25pt}{7pt}{2pt}{.75pt}{1pt}{25.25pt}{3pt}
+\RoundProbe{y-min}{7pt}{2pt}{1.25pt}{2.75pt}{.5pt}{3pt}{29.75pt}
+\RoundProbe{zero}{0pt}{0pt}{0pt}{0pt}{0pt}{0pt}{0pt}
+\RoundProbe{padding-only}{0pt}{0pt}{0pt}{3.5pt}{1.25pt}{0pt}{0pt}
+\RoundProbe{empty-min}{0pt}{0pt}{0pt}{0pt}{0pt}{1pt}{2pt}
+\RoundProbe{odd-min}{0pt}{0pt}{0pt}{0pt}{0pt}{101sp}{99sp}
+\RoundProbe{signed-sep}{4pt}{6pt}{0pt}{-11pt}{0pt}{0pt}{0pt}
+\RoundProbe{axis}{10pt}{0pt}{0pt}{0pt}{0pt}{0pt}{0pt}
+\RoundProbe{vertical}{0pt}{0pt}{0pt}{0pt}{60pt}{0pt}{0pt}
+\RoundProbe{flat-negative}{0pt}{0pt}{0pt}{-100pt}{0pt}{0pt}{0pt}
+\RoundProbe{wide-extreme}{0pt}{0pt}{0pt}{512pt}{1sp}{0pt}{0pt}
+\RoundProbe{tall-extreme}{0pt}{0pt}{0pt}{1sp}{512pt}{0pt}{0pt}
+\RoundProbe{tiny-65}{0pt}{0pt}{0pt}{10sp}{65sp}{0pt}{0pt}
+\RoundProbe{tiny-66}{0pt}{0pt}{0pt}{10sp}{66sp}{0pt}{0pt}
+\RoundProbe{odd-sp}{823119sp}{170013sp}{40012sp}{17001sp}{27015sp}{0sp}{0sp}
+% Same total height, different parity in the two independent registers.
+\RoundProbe{split-even}{2pt}{262144sp}{131092sp}{.25pt}{.5pt}{0pt}{0pt}
+\RoundProbe{split-odd}{2pt}{262145sp}{131091sp}{.25pt}{.5pt}{0pt}{0pt}
+% Same odd total height; the signed negative half truncates toward zero.
+\RoundProbe{split-no-depth}{2pt}{393235sp}{0sp}{.25pt}{.5pt}{0pt}{0pt}
+\RoundProbe{split-negative}{2pt}{458772sp}{-65537sp}{.25pt}{.5pt}{0pt}{0pt}
+% Opt in without -halt-on-error to measure TeX's continuation after an error.
+\ifdefined\RoundNodeErrorProbes
+  \RoundProbe{zero-divisor-y}{0pt}{0pt}{0pt}{-100pt}{.1pt}{0pt}{0pt}
+  \RoundProbe{zero-divisor-x}{0pt}{0pt}{0pt}{.1pt}{-100pt}{0pt}{0pt}
+  \RoundProbe{both-negative}{0pt}{0pt}{0pt}{-100pt}{-.1pt}{0pt}{0pt}
+  \RoundProbe{oversized-register}{0pt}{0pt}{0pt}{1100pt}{1sp}{0pt}{0pt}
+\fi
+\end{pgfpicture}
+\end{document}

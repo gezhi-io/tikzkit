@@ -19,6 +19,7 @@ import {
   normalizeKatexTex
 } from "./mathFallbackSyntax.js";
 import { renderMarker } from "./markers.js";
+import { paintNodeOutline } from "./nodeOutline.js";
 import { escapeAttribute } from "./escape.js";
 import { renderScopedMathStyleDef } from "./mathHtml.js";
 import {
@@ -165,9 +166,10 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
       const shapeClass = isForbiddenSignShape(item.shape) || isMagnifyingGlassShape(item.shape)
         ? ` class="tikz-node-shape tikz-node-${escapeAttribute(item.shape)}"`
         : "";
-      return renderNodeBoxWithOverlay(item, `<ellipse${shapeClass} cx="${format(item.x * unit)}" cy="${format(-item.y * unit)}" rx="${format(
+      const geometry = `<ellipse${shapeClass} cx="${format(item.x * unit)}" cy="${format(-item.y * unit)}" rx="${format(
         (item.width / 2) * unit
-      )}" ry="${format((item.height / 2) * unit)}"${styleAttributes(item.style)} />`, unit);
+      )}" ry="${format((item.height / 2) * unit)}"`;
+      return renderNodeBoxWithOverlay(item, paintNodeOutline(geometry, item.style, ' class="tikz-bpmn-double"'), unit);
     }
     if (item.shape === "circleSplit") return renderNodeBoxWithOverlay(item, renderCircleSplitNodeBox(item, unit), unit);
     if (item.shape === "circleSolidus") return renderNodeBoxWithOverlay(item, renderCircleSolidusNodeBox(item, unit), unit);

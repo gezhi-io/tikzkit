@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { measuredMinRadiusCm } from "./helpers/round-node-minima.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
@@ -129,7 +130,7 @@ test("graph math nodes use native TeX script metrics inside minimum-size circles
   assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(circles.map((item) => item.id), ["a_1", "b^2", "c_3^n", "z"]);
   for (const circle of circles) {
-    assert.ok(circle.width >= 0.8 && circle.width < 0.82, `${circle.id} should remain at the native 8mm minimum, got ${circle.width}cm`);
+    assert.ok(Math.abs(circle.width - 2 * measuredMinRadiusCm("8mm")) < 1e-9, `${circle.id}: ${circle.width}cm`);
     assert.equal(circle.width, circle.height);
   }
 });

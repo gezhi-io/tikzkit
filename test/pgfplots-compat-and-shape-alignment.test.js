@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { measuredMinRadiusCm } from "./helpers/round-node-minima.js";
 import test from "node:test";
 
 import { parseDimension } from "../src/engine/math.js";
@@ -53,5 +54,5 @@ test("ellipse nodes circumscribe their text before applying a smaller minimum wi
   const wideMinimum = box("minimum width=8cm");
   // pgflibraryshapes.geometric: radius = sqrt(2) * (content/2 + inner sep), then max with minimum/2.
   assert.ok(Math.abs(narrowMinimum.width - natural.width) < 1e-9, `${narrowMinimum.width} vs ${natural.width}`);
-  assert.ok(Math.abs(wideMinimum.width - 8) < 1e-9, `${wideMinimum.width}`);
+  assert.ok(Math.abs(wideMinimum.width - 2 * measuredMinRadiusCm(8)) < 1e-9, `${wideMinimum.width}`);
 });
