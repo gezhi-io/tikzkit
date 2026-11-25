@@ -1,0 +1,14 @@
+% pgfmanual-en-tikz-paths.tex:396-398: the inset is not scaled.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \path[use as bounding box] (-3pt,-3pt) rectangle (95pt,38pt);
+  \draw[blue,line width=1pt,rounded corners=8pt]
+    (0pt,0pt) -- (0pt,22pt) -- (30pt,22pt);
+  \begin{scope}[xshift=45pt,rotate=20,xscale=1.6,yscale=.7]
+    \draw[red,line width=1pt,rounded corners=8pt]
+      (0pt,0pt) -- (0pt,22pt) -- (30pt,22pt);
+  \end{scope}
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \path[use as bounding box] (-3pt,-3pt) rectangle (75pt,36pt);
+  \draw[blue,line width=1.1pt,rounded corners=7pt]
+    (0pt,0pt) -- (18pt,0pt)
+    .. controls (18pt,15pt) and (26pt,26pt) .. (39pt,23pt)
+    .. controls (45pt,12pt) and (59pt,4pt) .. (71pt,7pt)
+    -- (71pt,32pt);
+\end{tikzpicture}
+\end{document}

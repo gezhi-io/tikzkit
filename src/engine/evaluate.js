@@ -111,6 +111,7 @@ import {
   TREE_PARENT_ALIAS
 } from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
+import { pathCornerInset, pathCornerMarks } from "./pathCornerMarks.js";
 import { resolveArrowActions, withoutArrowActions } from "../tikz/pathOperations/arrowActions.js";
 import { gridCartesianPair, gridLiteralPoint, gridSegments, gridStep } from "../tikz/pathOperations/grid.js";
 import { ellipseOptionLayers, ellipseRadiusKeys, hasOppositeEllipseWinding, markEllipseControlBounds, usesCompoundEllipses } from "../tikz/pathOperations/ellipse.js";
@@ -819,7 +820,7 @@ function translateItems(items = [], dx = 0, dy = 0) {
   });
   for (const item of items) {
     translatePointFields(item, dx, dy);
-    for (const key of ["commands", "decorationInputCommands", "pathCommands"]) {
+    for (const key of ["commands", "constructionCommands", "decorationInputCommands", "pathCommands"]) {
       if (Array.isArray(item[key])) item[key] = translateCommands(item[key]);
     }
     if (item.scopeClips) item.scopeClips = item.scopeClips.map(clip => {
@@ -1477,6 +1478,10 @@ function mergeScopePictureOptions(parentOptions = {}, scopeOptions = {}) {
   const merged = { ...parentOptions };
   for (const [key, value] of Object.entries(scopeOptions || {})) {
     if (isScopeTransformOption(key) || isScopeDefinitionOption(key)) continue;
+    if (key === "rounded corners" || key === "sharp corners") {
+      mergeOptionOrder(merged, { [key]: value });
+      continue;
+    }
     // TikZ's font key replaces \tikz@textfont, including in nested scopes.
     // Actual TeX font declarations are tracked separately in currentFont.
     merged[key] = value;
@@ -1611,6 +1616,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
 
   const pathSegments = expandInlinePathForeachSegments(statement.path.segments, pathEnv);
   const built = buildPath(pathSegments, pathEnv, diagnostics, pathOptions, style, statement.command);
+  const constructed = built.constructionCommands ?? built.commands;
   const namedPath = semantic["name path global"] ?? semantic["name path"];
   if (namedPath) {
     pathEnv.namedPaths[String(namedPath).trim()] = built.commands.length
@@ -1632,7 +1638,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   }
 
   if (tikzBoolean(pathOptions["use as bounding box"])) {
-    const bboxCommands = [...built.commands, ...built.shapes.flatMap((shape) => shape.commands || [])];
+    const bboxCommands = [...constructed, ...built.shapes.flatMap((shape) => shape.commands || [])];
     if (bboxCommands.length) {
       ir.items.push(createBoundingBoxShape(bboxCommands, {
         tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
@@ -1670,12 +1676,13 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     fillRule: pathStyle.fillRule
   } : null;
   if (clip && !visible && !env.scopeClips && !tikzBoolean(pathOptions.overlay) && clip.commands.length) {
-    ir.items.push(createBoundingBoxShape(clip.commands, {
+    const box = built.constructionCommands ? constructed.concat(clip.commands.slice(built.commands.length)) : clip.commands;
+    ir.items.push(createBoundingBoxShape(box, {
       tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
     }));
   } else if (!visible && !tikzBoolean(pathOptions.overlay) &&
       (pathEnv.trackLocalBounds || requestedArrowAction)) {
-    const geometry = built.commands.concat(built.splitContours.flatMap(s => s.commands));
+    const geometry = constructed.concat(built.splitContours.flatMap(s => s.commands));
     if (geometry.length) ir.items.push(createBoundingBoxShape(geometry, requestedArrowAction ? { retainZeroExtent: true } : {}));
   }
   const shadows = pathGeneralShadows(semantic, pathEnv, style);
@@ -1725,6 +1732,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
           clipCircle,
           clipPolygon,
           includeStrokeBounds,
+          ...(built.constructionCommands && { constructionCommands: built.constructionCommands }),
           includeArrowNormalBounds: built.nodes.length === 0,
           includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(pathOptions),
           tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
@@ -1854,6 +1862,8 @@ function isCoordinateNodePlacementPath(segments = []) {
 
 function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {}, pathCommand = "path") {
   const commands = [];
+  const cornerMarks = pathCornerMarks(commands, pathCornerInset(pathOptions, env));
+  const pathScopes = [];
   const boundsMoves = [];
   const gridLiterals = segments.some(s => s.value === "grid") ? new WeakMap() : null;
   const compoundEllipses = usesCompoundEllipses(segments, pathOptions, pathStyle);
@@ -1861,11 +1871,12 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
   const splitContours = [];
   // TikZ appends nodes, pic foregrounds and independent edges to one figbox.
   const foreground = [];
-  const styleHints = {};
-  const effectivePathOptions = { ...pathOptions };
+  let styleHints = {};
+  let effectivePathOptions = { ...pathOptions };
   let actionOptions = pathOptions;
   let strokeInk;
   let pendingBorderMove;
+  let rectangleResume;
   let current = null;
   let currentLocal = null;
   let currentBase = null;
@@ -1880,6 +1891,31 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
   let pendingPlotMark = null;
 
   for (const segment of segments) {
+    if (rectangleResume && !["options", "beginPathScope", "endPathScope", "node", "coordinateName", "pic", "let"].includes(segment.kind)) {
+      // TikZ starts a fresh subpath at the opposite corner after rectangle.
+      // A later bare coordinate supersedes this pending move without a stroke.
+      if (segment.kind !== "coordinate" && segment.kind !== "edge") commands.push(moveToCommand(rectangleResume));
+      if (segment.kind !== "edge") rectangleResume = null;
+    }
+    if (segment.kind === "beginPathScope") {
+      pathScopes.push({ env, effectivePathOptions, actionOptions, strokeInk, styleHints });
+      effectivePathOptions = { ...effectivePathOptions };
+      styleHints = { ...styleHints };
+      env = { ...env, pathLet: { points: { ...env.pathLet?.points }, numbers: { ...env.pathLet?.numbers } } };
+      continue;
+    }
+    if (segment.kind === "endPathScope") {
+      const outer = pathScopes.pop();
+      if (!outer) continue;
+      // Commands, pen position and queued figures survive a TikZ path group;
+      // local keys (including the paint mode) do not.
+      for (const key of ["visiblePic", "shape", "subtype"]) {
+        if (styleHints[key]) outer.styleHints[key] = styleHints[key];
+      }
+      ({ env, effectivePathOptions, actionOptions, strokeInk, styleHints } = outer);
+      cornerMarks.select(pathCornerInset(actionOptions, env));
+      continue;
+    }
     if (segment.kind === "decorate") {
       const nestedOptions = {
         ...effectivePathOptions,
@@ -1887,7 +1923,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         decorate: true
       };
       const nested = buildPath(segment.segments || [], env, diagnostics, nestedOptions, pathStyle, pathCommand);
-      commands.push(...nested.commands);
+      cornerMarks.appendUnmarked(nested.commands);
       shapes.push(...nested.shapes);
       splitContours.push(...nested.splitContours);
       foreground.push(...nested.foreground);
@@ -1919,6 +1955,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       mergeOptionOrder(effectivePathOptions, segmentOptions);
       const normalized = normalizeOptions(pathCommand, effectivePathOptions, env);
       actionOptions = normalized.options;
+      cornerMarks.select(pathCornerInset(actionOptions, env));
       strokeInk = normalized.strokeInk;
       Object.assign(styleHints, pathOptionStyleHints(normalized, env));
       continue;
@@ -2005,6 +2042,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
       } else if (pendingValue === "rectangle") {
+        if (commands.at(-1)?.type !== "moveTo") commands.push(moveToCommand(current));
         const corners =
           currentLocal && localPoint
             ? transformedRectangleCorners(currentLocal, localPoint, coordinateTransformForEnvironment(env))
@@ -2017,6 +2055,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         commands.push(lineToCommand(corners[1]));
         commands.push(lineToCommand(corners[2]));
         commands.push(closePathCommand());
+        rectangleResume = start = point;
+        startNodeRef = nodeRef;
         lastSegment = { from: current, to: point };
         current = point;
         currentLocal = localPoint || point;
@@ -2451,7 +2491,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       if (!shape) continue;
       const center = { x: shape.cx, y: shape.cy };
       if (compoundEllipses) {
-        commands.push(...shape.commands, moveToCommand(center));
+        cornerMarks.appendUnmarked(shape.commands);
+        commands.push(moveToCommand(center));
       } else {
         const contour = decoratedShape({ ...shape, subtype: semanticSubtype(pathOptions) }, effectivePathOptions, env);
         shapes.push(contour);
@@ -2471,7 +2512,10 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
     if (segment.kind === "arc" && current) {
       const arc = buildArc(current, segment.options, env);
       const arcCommands = commands.length ? arc.commands.slice(1) : arc.commands;
-      commands.push(...arcCommands);
+      if (arcCommands.length) {
+        cornerMarks.appendUnmarked(arcCommands.slice(0, -1));
+        commands.push(arcCommands.at(-1));
+      }
       styleHints.shape = styleHints.shape || "arc";
       lastSegment = {
         from: current,
@@ -2565,12 +2609,14 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
   // border. An edge interrupts the path and does not flush that move.
   if (pendingBorderMove && commands.at(-1) === pendingBorderMove &&
       (pathStyle.markerStart || pathStyle.markerEnd || styleHints.markerStart || styleHints.markerEnd)) commands.pop();
-  const roundedCommands = applyRoundedCornersToPath(commands, effectivePathOptions, env);
+  const roundedCommands = cornerMarks.resolve();
   const decoratedCommands = applyPathDecoration(roundedCommands, effectivePathOptions, env);
-  // The requested corners contribute to the paper even when off the lattice.
+  // PGF surveys endpoints and control points before replacing corner markers.
+  // A large or negative inset may paint outside that surveyed paper.
   const originalBounds = roundedCommands === commands && decoratedCommands.length ? null : commands;
   return {
     commands: decoratedCommands,
+    constructionCommands: roundedCommands !== commands && decoratedCommands === roundedCommands ? commands : null,
     decorationInputCommands: roundedCommands,
     decorationOptions: effectivePathOptions,
     boundsCommands: boundsMoves.length ? boundsMoves.concat(originalBounds || []) : originalBounds,
@@ -2641,107 +2687,6 @@ function pathCommandBounds(commands = []) {
   });
   if (!Number.isFinite(bounds.minX)) return null;
   return bounds;
-}
-
-function applyRoundedCornersToPath(commands = [], options = {}, env = {}) {
-  const radius = roundedCornerRadius(options, env);
-  if (!Number.isFinite(radius) || radius <= 0) return commands;
-  if (!commands.length || commands.some((command) => command.type !== "moveTo" && command.type !== "lineTo" && command.type !== "closePath")) {
-    return commands;
-  }
-  if (commands[0]?.type !== "moveTo") return commands;
-  const closed = commands.at(-1)?.type === "closePath";
-  const points = commands
-    .filter((command) => command.type === "moveTo" || command.type === "lineTo")
-    .map((command) => ({ x: command.x, y: command.y }));
-  const uniquePoints = removeDuplicateNeighborPoints(points, closed);
-  if (uniquePoints.length < (closed ? 3 : 3)) return commands;
-
-  return closed
-    ? roundedClosedPolylineCommands(uniquePoints, radius)
-    : roundedOpenPolylineCommands(uniquePoints, radius);
-}
-
-function roundedCornerRadius(options = {}, env = {}) {
-  if (Object.hasOwn(options, "sharp corners")) return 0;
-  if (!Object.hasOwn(options, "rounded corners")) return 0;
-  const value = options["rounded corners"];
-  const raw = value === true || value === "" || value === undefined || value === null ? "4pt" : value;
-  const parsed = parseDimension(raw, env.variables);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed * canvasLengthScale(env) : 0;
-}
-
-function removeDuplicateNeighborPoints(points = [], closed = false) {
-  const result = [];
-  for (const point of points) {
-    const previous = result.at(-1);
-    if (!previous || pointDistance(previous, point) > 1e-9) result.push(point);
-  }
-  if (closed && result.length > 1 && pointDistance(result[0], result.at(-1)) <= 1e-9) result.pop();
-  return result;
-}
-
-function roundedClosedPolylineCommands(points, radius) {
-  const corners = points.map((point, index) => roundedCorner(points[(index - 1 + points.length) % points.length], point, points[(index + 1) % points.length], radius));
-  const commands = [moveToCommand(corners[0].exit)];
-  for (let index = 1; index < corners.length; index += 1) {
-    commands.push(lineToCommand(corners[index].entry));
-    commands.push(roundedCornerCurve(corners[index]));
-  }
-  commands.push(lineToCommand(corners[0].entry));
-  commands.push(roundedCornerCurve(corners[0]));
-  commands.push(closePathCommand());
-  return commands;
-}
-
-function roundedOpenPolylineCommands(points, radius) {
-  const commands = [moveToCommand(points[0])];
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const corner = roundedCorner(points[index - 1], points[index], points[index + 1], radius);
-    commands.push(lineToCommand(corner.entry));
-    commands.push(roundedCornerCurve(corner));
-  }
-  commands.push(lineToCommand(points.at(-1)));
-  return commands;
-}
-
-function roundedCorner(previous, point, next, radius) {
-  const incoming = unitVector(previous, point);
-  const outgoing = unitVector(point, next);
-  const incomingLength = pointDistance(previous, point);
-  const outgoingLength = pointDistance(point, next);
-  const distance = Math.min(radius, incomingLength / 2, outgoingLength / 2);
-  const entry = {
-    x: point.x - incoming.x * distance,
-    y: point.y - incoming.y * distance
-  };
-  const exit = {
-    x: point.x + outgoing.x * distance,
-    y: point.y + outgoing.y * distance
-  };
-  const controlDistance = distance * 0.5;
-  return {
-    entry: roundPoint(entry),
-    exit: roundPoint(exit),
-    c1: roundPoint({ x: entry.x + incoming.x * controlDistance, y: entry.y + incoming.y * controlDistance }),
-    c2: roundPoint({ x: exit.x - outgoing.x * controlDistance, y: exit.y - outgoing.y * controlDistance })
-  };
-}
-
-function roundedCornerCurve(corner) {
-  return curveToCommand(corner.c1, corner.c2, corner.exit);
-}
-
-function unitVector(from, to) {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const length = Math.hypot(dx, dy);
-  if (length < 1e-12) return { x: 0, y: 0 };
-  return { x: dx / length, y: dy / length };
-}
-
-function pointDistance(a, b) {
-  return Math.hypot((b?.x || 0) - (a?.x || 0), (b?.y || 0) - (a?.y || 0));
 }
 
 function inlineNodePathPoint(options = {}, lastSegment) {
@@ -9539,6 +9484,9 @@ function spyMagnifiedItem(item, onPoint, inCenter, magnification) {
     const transformed = {
       ...item,
       commands: item.commands.map((command) => spyTransformCommand(command, onPoint, inCenter, magnification)),
+      ...(item.constructionCommands && {
+        constructionCommands: item.constructionCommands.map(command => spyTransformCommand(command, onPoint, inCenter, magnification))
+      }),
       style: spyMagnifiedStyle(item.style || {}, magnification)
     };
     if (Number.isFinite(Number(item.cx)) && Number.isFinite(Number(item.cy))) {
@@ -19106,7 +19054,7 @@ function wrappedTextMetricNormalized(normalized, wrapWidth, lineBreakMode, wrapO
 }
 
 function includePathItemBounds(item, include) {
-  includePathCommandBounds(item.commands || [], include, { tightBezierBounds: item.tightBezierBounds });
+  includePathCommandBounds(item.constructionCommands ?? item.commands ?? [], include, { tightBezierBounds: item.tightBezierBounds });
 }
 
 function polygonNodeShape(shape) {

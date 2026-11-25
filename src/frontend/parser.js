@@ -1542,6 +1542,11 @@ export function parsePathSegments(pathText) {
     index = skipWhitespace(pathText, index);
     if (index >= pathText.length) break;
 
+    if (pathText[index] === "{" || pathText[index] === "}") {
+      segments.push({ kind: pathText[index++] === "{" ? "beginPathScope" : "endPathScope" });
+      continue;
+    }
+
     if (startsKeyword(pathText, index, "decorate")) {
       const parsed = parseDecoratePathSegment(pathText, index);
       if (parsed) {

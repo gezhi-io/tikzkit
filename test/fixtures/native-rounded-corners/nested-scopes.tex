@@ -1,0 +1,15 @@
+% Four congruent elbows in draw order: sharp, 7pt, sharp, 1pt.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[rounded corners=1pt,line width=.8pt]
+  \begin{scope}[sharp corners]
+    \draw[black] (0pt,0pt) -- (0pt,20pt) -- (19pt,20pt);
+    \begin{scope}[rounded corners=7pt]
+      \draw[blue] (27pt,0pt) -- (27pt,20pt) -- (46pt,20pt);
+    \end{scope}
+    \draw[red] (54pt,0pt) -- (54pt,20pt) -- (73pt,20pt);
+  \end{scope}
+  \draw[green!55!black] (81pt,0pt) -- (81pt,20pt) -- (100pt,20pt);
+\end{tikzpicture}
+\end{document}

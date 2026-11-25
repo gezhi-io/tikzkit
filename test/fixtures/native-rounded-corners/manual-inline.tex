@@ -1,0 +1,10 @@
+% PGF manual, pgfmanual-en-tikz-paths.tex:411-413.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw (0,0) [rounded corners=10pt] -- (1,1) -- (2,1)
+    [sharp corners] -- (2,0)
+    [rounded corners=5pt] -- cycle;
+\end{tikzpicture}
+\end{document}

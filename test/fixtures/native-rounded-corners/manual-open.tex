@@ -1,0 +1,10 @@
+% PGF manual, pgfmanual-en-tikz-paths.tex:391-392. Its single control
+% is written twice explicitly so this gate measures corners, not shorthand parsing.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[rounded corners] (0,0) -- (1,1)
+    -- (2,0) .. controls (3,1) and (3,1) .. (4,0);
+\end{tikzpicture}
+\end{document}

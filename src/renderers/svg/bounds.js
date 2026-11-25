@@ -309,7 +309,7 @@ function includePathBounds(item, include, unit) {
     pathBounds.maxX = Math.max(pathBounds.maxX, x);
     pathBounds.maxY = Math.max(pathBounds.maxY, y);
   };
-  includePathCommandBounds(item.commands || [], includeLocal, { tightBezierBounds: item.tightBezierBounds });
+  includePathCommandBounds(item.constructionCommands ?? item.commands ?? [], includeLocal, { tightBezierBounds: item.tightBezierBounds });
   if (!Number.isFinite(pathBounds.minX)) return;
   const includeStrokeBounds = item.includeStrokeBounds ?? item.type === "path";
   const pad = includeStrokeBounds ? pathStrokePadding(item, unit) : 0;

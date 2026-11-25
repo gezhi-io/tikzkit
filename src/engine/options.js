@@ -1239,6 +1239,11 @@ export function mergeOptionOrder(target, source) {
 
 function setOrderedOption(options, key, value) {
   if (key === "/pgf/tips") key = "tips";
+  // These are two assignments to the same PGF corner register, including
+  // inside named styles. Keep only the one that executed last.
+  if (key === "/tikz/rounded corners" || key === "/tikz/sharp corners") key = key.slice(6);
+  if (key === "rounded corners") delete options["sharp corners"];
+  if (key === "sharp corners") delete options["rounded corners"];
   if ((key === "draw" || key === "fill") && Object.hasOwn(options, key) &&
       (value === true || value === "" || value === "none")) {
     const prior = options[key];

@@ -1,0 +1,9 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "round-manual-open", "round-manual-inline", "round-disconnected", "round-closed-cycle",
+    "round-rectangles", "round-cubic-joins", "round-oversize", "round-transform",
+    "round-sharp-control", "round-corpus-polyline", "round-manual-braced",
+    "round-oversize-bbox", "round-line-rectangle-line", "round-nested-scopes"
+  ]
+}

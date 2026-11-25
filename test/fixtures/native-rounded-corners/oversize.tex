@@ -1,0 +1,10 @@
+% Test the short-segment warning in pgfmanual-en-tikz-paths.tex:426-430.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \path[use as bounding box] (-14pt,-4pt) rectangle (34pt,45pt);
+  \draw[red,line width=1.1pt,rounded corners=12pt]
+    (0pt,0pt) -- (0pt,22pt) -- (4pt,22pt) -- (4pt,40pt) -- (29pt,40pt);
+\end{tikzpicture}
+\end{document}

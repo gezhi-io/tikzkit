@@ -1,0 +1,18 @@
+{
+  "cases": [
+    { "id": "round-manual-open", "source": "manual-open.tex", "title": "Manual: default inset on an open line and curve" },
+    { "id": "round-manual-inline", "source": "manual-inline.tex", "title": "Manual: 10pt, sharp, then 5pt at cycle" },
+    { "id": "round-manual-braced", "source": "manual-braced.tex", "title": "Manual: brace-scoped rounded corners restore the surrounding path state" },
+    { "id": "round-disconnected", "source": "disconnected.tex", "title": "Two separate open subpaths in the same stroke" },
+    { "id": "round-closed-cycle", "source": "closed-cycle.tex", "title": "Closed asymmetric polygon, including its starting corner" },
+    { "id": "round-rectangles", "source": "rectangles.tex", "title": "Manual 1ex rectangle and a reverse-direction rectangle" },
+    { "id": "round-line-rectangle-line", "source": "line-rectangle-line.tex", "title": "A line, rectangle and outgoing line in one draw command" },
+    { "id": "round-cubic-joins", "source": "cubic-joins.tex", "title": "Line to cubic, cubic to cubic, and cubic to line" },
+    { "id": "round-oversize", "source": "oversize.tex", "title": "Unclamped 12pt inset around a 4pt segment" },
+    { "id": "round-oversize-bbox", "source": "oversize-bbox.tex", "title": "20pt elbow on two 2pt sides: protruding stroke does not enlarge the page" },
+    { "id": "round-transform", "source": "transform.tex", "title": "The same physical inset under rotation and unequal scales" },
+    { "id": "round-sharp-control", "source": "sharp-control.tex", "title": "Sharp negative control with the manual open geometry" },
+    { "id": "round-corpus-polyline", "source": "../implementation-examples/paths/polyline-cycle.tikz", "title": "Existing implementation corpus: blue filled triangle, unmodified" },
+    { "id": "round-nested-scopes", "source": "nested-scopes.tex", "title": "Picture 1pt, outer sharp, inner 7pt, restored sharp, restored 1pt" }
+  ]
+}
