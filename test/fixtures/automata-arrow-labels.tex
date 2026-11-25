@@ -1,0 +1,37 @@
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{automata,arrows.meta}
+\newsavebox{\drawing}
+\newdimen\ax
+\newdimen\ay
+% Name the library-created rectangle without changing its geometry.
+\newcommand{\probe}[4]{%
+  \sbox{\drawing}{\begin{tikzpicture}[>=Stealth,#2,
+    every initial by arrow/.append style={every node/.append style={name=readlabel}},
+    every accepting by arrow/.append style={every node/.append style={name=readlabel}}]
+    \node[state,#3] {#4};
+    \pgftransformreset
+    \pgfextractx{\ax}{\pgfpointanchor{readlabel}{center}}%
+    \pgfextracty{\ay}{\pgfpointanchor{readlabel}{center}}%
+    \typeout{LABEL #1: \the\ax\space\the\ay}%
+  \end{tikzpicture}}%
+  \typeout{PAGE #1: \the\wd\drawing\space\the\dimexpr\ht\drawing+\dp\drawing\relax}}
+\begin{document}
+\probe{left}{}{initial}{$q_0$}
+\probe{right}{}{initial,initial where=right,initial text=entry}{$q_1$}
+\probe{above}{}{initial above}{$q_2$}
+\probe{below}{}{initial below,initial distance=5ex}{$q_3$}
+\probe{empty}{}{accepting right,accepting distance=5ex}{$q_0$}
+\probe{styled}{every accepting by arrow/.style={font=\Large,line width=2pt,inner xsep=6pt}}{accepting by arrow,accepting where=left,accepting text=done,font=\tiny}{$q_0$}
+\probe{statefont}{}{initial,font=\Large,text=red}{$q_0$}
+\probe{zero}{}{initial,initial text=,initial distance=0pt}{$q_0$}
+\probe{scaled}{scale=2}{initial right}{$q_0$}
+\probe{rotated}{rotate=90}{initial right}{$q_0$}
+\probe{orderA}{}{initial above,initial where=right}{}
+\probe{orderB}{}{accepting where=below,accepting above,accepting text=Ag}{}
+\probe{every}{every node/.style={inner sep=5pt,font=\footnotesize}}{initial,text=red}{$q_0$}
+\probe{math}{}{accepting below,accepting text={$g_1$}}{}
+\probe{shape}{scale=1.5,transform shape}{initial right}{}
+\probe{scope}{initial where=above,initial text=outer,initial distance=20pt}{initial,initial where=right,initial text=inner,initial distance=2pt}{}
+\probe{repeated}{}{initial,initial where=below,initial where=right,initial text=first,initial text=second,initial distance=6pt,initial distance=2pt}{}
+\end{document}

@@ -55,6 +55,9 @@ narrower and 2.41 mm shorter than the reference. Entry-arrow tips and their
 label spacing are separate from the circular border. This audit does not
 certify split nodes, arbitrary canvas transformations or all math text.
 
+The later [automata arrow-label audit](2026-11-25-automata-arrow-labels.md)
+resolves that page-size and label-spacing discrepancy on the same gallery source.
+
 [Replay the browser and converter comparisons](../../test/fixtures/native-round-nodes/README.md).
 The independent TeX fixtures record [node radii](../../test/fixtures/round-node-radii.tex)
 and [page sizes and anchors](../../test/fixtures/round-node-outlines.tex).

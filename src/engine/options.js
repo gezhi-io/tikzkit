@@ -7,6 +7,7 @@ import {
 import { normalizeImplicitLengthProducts, parseDimension, substituteTextVariables } from "./math.js";
 import { evaluateRestrictedExpression } from "./safe-expression.js";
 import { normalizePositioningKey, positioningRegisterName } from "../tikz/positioningKeys.js";
+import { automataParameterName, preserveAutomataWrite } from "../tikz/libraries/automata.js";
 import { isColorToken, normalizeColor, normalizePgfRgbColor, normalizeShadingColor } from "./colors.js";
 export { normalizeColor, colorToRgb, cmykToRgb, cmykToCss } from "./colors.js";
 
@@ -120,7 +121,7 @@ export function stripTexComments(input = "") {
 function setParsedOption(options, key, value) {
   key = normalizePositioningKey(key);
   if (key === "/pgf/tips") key = "tips";
-  if (key === "draw" || key === "fill" || key === "double" || positioningRegisterName(key)) return setOrderedOption(options, key, value);
+  if (key === "draw" || key === "fill" || key === "double" || positioningRegisterName(key) || automataParameterName(key)) return setOrderedOption(options, key, value);
   if (key === "pattern" || key === "/tikz/pattern") {
     // PGF's empty/none forms only toggle filling. Keep that action distinct
     // from selecting ink so a bare key cannot shadow a scoped tile name.
@@ -1251,6 +1252,8 @@ function renameOrderedKey(options, key, replacement) {
 
 function setOrderedOption(options, key, value) {
   key = normalizePositioningKey(key);
+  key = automataParameterName(key) ?? key;
+  if (preserveAutomataWrite(options, key, value)) return;
   if (key === "/pgf/tips") key = "tips";
   const register = positioningRegisterName(key);
   if (register) {

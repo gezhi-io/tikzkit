@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"initial-accepting-states","title":"Initial and accepting states (original gallery)","source":"../../examples/automata/initial-accepting-states.tex"},
+    {"id":"accepting-cardinals","title":"Outgoing labels with inherited large font","source":"../accepting-cardinals.tex"},
+    {"id":"direct-cardinals","title":"Direct cardinal anchors with inherited large font","source":"../direct-cardinals.tex"}
+  ]
+}

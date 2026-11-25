@@ -16,6 +16,7 @@ import { doubleStrokeOptions } from "../tikz/doubleStroke.js";
 import { currarrowHead, generatorSettings, generatorVoltage } from "../extensions/circuitikz/sourceVoltage.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
+import { automataPlacement, automataStyles, replayAutomataNodeParameters } from "../tikz/libraries/automata.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
 import { loadsModernArrowDefaults } from "../tikz/libraries/arrows.meta.js";
 import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
@@ -221,28 +222,7 @@ const DEFAULT_TEX_VARIABLES = {
 };
 
 const BUILTIN_STYLES = {
-  "every state": {},
-  "state without output": { circle: true, draw: true, "minimum size": "2.5em", "every state": true },
-  "state with output": { "circle split": true, draw: true, "minimum size": "2.5em", "every state": true },
-  state: { "state without output": true },
-  // tikzlibraryautomata.code.tex builds accepting states from the ordinary
-  // state shape, then adds the double outline. Initial and accepting arrows
-  // are after-node paths, so retain their direction until the node boundary
-  // is known.
-  "accepting by double": { double: true, "outer sep": ".5\\pgflinewidth+.3pt" },
-  accepting: { "accepting by double": true },
-  "accepting by arrow": { "tikzkit automata accepting": true, "tikzkit automata accepting angle": 0 },
-  "accepting above": { "accepting by arrow": true, "tikzkit automata accepting angle": 90 },
-  "accepting below": { "accepting by arrow": true, "tikzkit automata accepting angle": 270 },
-  "accepting left": { "accepting by arrow": true, "tikzkit automata accepting angle": 180 },
-  "accepting right": { "accepting by arrow": true, "tikzkit automata accepting angle": 0 },
-  "initial by diamond": { shape: "diamond" },
-  "initial by arrow": { "tikzkit automata initial": true, "tikzkit automata initial angle": 180 },
-  initial: { "initial by arrow": true },
-  "initial above": { "initial by arrow": true, "tikzkit automata initial angle": 90 },
-  "initial below": { "initial by arrow": true, "tikzkit automata initial angle": 270 },
-  "initial left": { "initial by arrow": true, "tikzkit automata initial angle": 180 },
-  "initial right": { "initial by arrow": true, "tikzkit automata initial angle": 0 },
+  ...automataStyles,
   "every concept": {},
   concept: { circle: true, "tikzkit concept": true, "every concept": true },
   "extra concept": { "concept color": "black!50", "level 2 concept": true, concept: true, "every extra concept": true },
@@ -6627,6 +6607,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env);
   let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle, pathOptions);
+  applyAutomataNodeParameters(expandedOptions, localOptions, env);
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   return withDimensionFont(
     () => nodeDimensionFontSpec(expandedOptions, env),
@@ -6942,6 +6923,7 @@ function createNode(statement, env, ir, diagnostics) {
     inheritedAndLocalOptions["every on chain"] = true;
   }
   let expandedOptions = normalizeOptions("node", inheritedAndLocalOptions, env).options;
+  applyAutomataNodeParameters(expandedOptions, localOptions, env);
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   expandedOptions = applyConceptNodeOptions(expandedOptions, env);
   expandedOptions = applyRotateFitOption(expandedOptions);
@@ -10279,6 +10261,7 @@ function addNodeItemsWithFont(node, ir, env) {
     const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "circularSector" || shape === "kite" || shape === "dart";
     ir.items.push({
       type: "textNode",
+      ...(node.automataLabel && renderedNodeText.trim() ? { subtype: "automata-" + node.automataLabel + "-text" } : {}),
       x: textPoint.x,
       y: textPoint.y,
       text: renderedNodeText,
@@ -10327,8 +10310,17 @@ function addNodeItemsWithFont(node, ir, env) {
   for (const pinItem of nodePins(node.options || {}, point, size, nodeEnv, textStyle)) {
     ir.items.push(pinItem);
   }
-  addAutomataInitialArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
-  addAutomataAcceptingArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
+  if (!node.automataLabel && (semantic["tikzkit automata initial"] || semantic["tikzkit automata accepting"])) {
+    const state = (node.name && env.nodes?.[node.name]) || {
+      point, shape, shapeData, rotation, width: size.width, height: size.height,
+      layoutWidth: node.anchorSize?.width, layoutHeight: node.anchorSize?.height
+    };
+    withDimensionFont(() => nodeDimensionFontSpec({}, env), () => {
+      for (const kind of ["initial", "accepting"]) {
+        if (tikzBoolean(semantic["tikzkit automata " + kind])) addAutomataArrow(kind, state, node.name, semantic, env, ir);
+      }
+    });
+  }
   applyNodeClips(ir, firstItemIndex, clips);
   applyNodeOverlay(ir, firstItemIndex, overlay);
   applyCanvasTransformBounds(ir, firstItemIndex, nodeEnv.canvasTrackingDisabled);
@@ -10399,168 +10391,48 @@ function magnifyingGlassForegroundItem(shape, point, size, rotation, style, sema
   });
 }
 
-function addAutomataInitialArrow(node, point, semantic, nodeStyle, textStyle, textFont, env, ir) {
-  if (!tikzBoolean(semantic["tikzkit automata initial"]) || !node.name) return;
-  const stateNode = env.nodes?.[node.name];
-  if (!stateNode) return;
+function applyAutomataNodeParameters(options, localOptions, env) {
+  if (!options["tikzkit automata initial"] && !options["tikzkit automata accepting"]) return;
+  const everyNode = env.styles?.["every node"] || env.pictureOptions?.nodes
+    ? normalizeOptions("node", {
+      "every node": true, ...parseInheritedNodesOption(env.pictureOptions?.nodes)
+    }, env).options : null;
+  replayAutomataNodeParameters(options, everyNode, localOptions);
+}
 
-  const rawAngle = Number(semantic["tikzkit automata initial angle"]);
-  const angle = Number.isFinite(rawAngle) ? rawAngle : 180;
-  const radians = (angle * Math.PI) / 180;
-  const direction = { x: Math.cos(radians), y: Math.sin(radians) };
-  const border = nodeBorderPoint(stateNode, point, {
-    x: point.x + direction.x,
-    y: point.y + direction.y
-  }, env);
-  const distance = parseFiniteDimension(
-    semantic["initial distance"],
-    env,
-    parseDimension("3ex", env.variables || {})
-  );
-  const start = roundPoint({
-    x: border.x + direction.x * distance,
-    y: border.y + direction.y * distance
+function addAutomataArrow(kind, state, nodeName, semantic, env, ir) {
+  const initial = kind === "initial";
+  const direction = automataPlacement(kind, stripOuterBraces(String(semantic[kind + " where"] ?? "")));
+  // PGF shifts the explicit numeric anchor in the outer path's axes, then
+  // connects to the implicit border toward that point. Under rotation the
+  // shifted anchor and the implicit border are not on the same radius.
+  const radialAnchor = nodeAnchorCoordinate(state, direction.angle, env);
+  const distance = parseFiniteDimension(semantic[kind + " distance"], env, parseDimension("3ex", env.variables));
+  const offset = applyCoordinateTransformVector({ x: direction.x * distance, y: direction.y * distance }, env);
+  const labelAt = roundPoint({ x: radialAnchor.x + offset.x, y: radialAnchor.y + offset.y });
+  const border = nodeBorderPoint(state, state.point, labelAt, env);
+  const edgeKeys = mergeOptionOrder(inheritedPathInkOptions(env.pictureOptions), {
+    "every path": true, "every edge": true, "->": true, double: "none", ["every " + kind + " by arrow"]: true
   });
-  // PGF builds this post-node path as `[->,double=none,every initial by arrow]`.
-  // It is deliberately independent from the state node's border style.
-  const arrowOptions = {
-    "->": true,
-    double: "none",
-    "every initial by arrow": true
-  };
-  if (env.pictureOptions?.[">"] !== undefined) arrowOptions[">"] = env.pictureOptions[">"];
-  const { style: initialStyle } = normalizeOptions("draw", arrowOptions, env);
-  const stroke = initialStyle.stroke || "black";
-  const lineWidth = initialStyle.lineWidth || lineWidthFromPt(0.4);
+  const path = normalizeOptions("draw", edgeKeys, env);
+  const points = initial ? [labelAt, border] : [border, labelAt];
   ir.items.push(createPathShape(
-    [moveToCommand(start), lineToCommand(border)],
-    {
-      stroke,
-      fill: "none",
-      lineWidth,
-      lineCap: initialStyle.lineCap,
-      lineJoin: initialStyle.lineJoin,
-      dashArray: initialStyle.dashArray,
-      dashLineCap: initialStyle.dashLineCap,
-      opacity: initialStyle.opacity,
-      strokeOpacity: initialStyle.strokeOpacity,
-      markerEnd: initialStyle.markerEnd || createArrowTip("to", { fill: stroke, stroke })
-    },
-    { subtype: "automata-initial" }
+    [moveToCommand(points[0]), lineToCommand(points[1])],
+    { ...scaleCanvasStyle(path.style, env), fill: "none" },
+    { subtype: "automata-" + kind, nodeId: nodeName || undefined }
   ));
-  addAutomataInitialText(start, angle, semantic, initialStyle, textStyle, textFont, env, ir);
-}
 
-function addAutomataInitialText(start, angle, semantic, initialStyle, textStyle, textFont, env, ir) {
-  const rawText = semantic["initial text"] === undefined ? "start" : stripOuterBraces(String(semantic["initial text"]));
-  const text = String(rawText || "").trim();
-  if (!text) return;
-  const normalizedAngle = ((angle % 360) + 360) % 360;
-  const anchor = normalizedAngle === 0 ? "start" : normalizedAngle === 180 ? "end" : "middle";
-  const side = normalizedAngle === 90 ? 1 : normalizedAngle === 270 ? -1 : 0;
-  const fontSizePt = Number(textFont?.sizePt) || 10;
-  const labelBox = measurePlainTextTeXBoxPt(text, {
-    fontSizePt,
-    fontFamily: textStyle.fontFamily
-  });
-  const verticalOffset = side * ((Number(labelBox?.height) || 0) + (Number(labelBox?.depth) || 0)) / (2 * TEX_PT_PER_CM);
-  ir.items.push({
-    type: "textNode",
-    subtype: "automata-initial-text",
-    x: start.x,
-    y: roundNumber(start.y + verticalOffset),
-    text,
-    font: textFont,
-    style: {
-      ...textStyle,
-      fill: initialStyle.textFill || textStyle.fill || "black"
-    },
-    svgTextAnchor: anchor,
-    svgTextX: start.x,
-    "tikzkit automata initial angle": normalizedAngle
-  });
-}
-
-function addAutomataAcceptingArrow(node, point, semantic, nodeStyle, textStyle, textFont, env, ir) {
-  if (!tikzBoolean(semantic["tikzkit automata accepting"]) || !node.name) return;
-  const stateNode = env.nodes?.[node.name];
-  if (!stateNode) return;
-
-  const rawAngle = Number(semantic["tikzkit automata accepting angle"]);
-  const angle = Number.isFinite(rawAngle) ? rawAngle : 0;
-  const radians = (angle * Math.PI) / 180;
-  const direction = { x: Math.cos(radians), y: Math.sin(radians) };
-  const border = nodeBorderPoint(stateNode, point, {
-    x: point.x + direction.x,
-    y: point.y + direction.y
-  }, env);
-  const distance = parseFiniteDimension(
-    semantic["accepting distance"],
-    env,
-    parseDimension("3ex", env.variables || {})
-  );
-  const end = roundPoint({
-    x: border.x + direction.x * distance,
-    y: border.y + direction.y * distance
-  });
-  // PGF uses the same path-local hook for an accepting arrow, after its
-  // default arrow and double-line reset have been installed.
-  const arrowOptions = {
-    "->": true,
-    double: "none",
-    "every accepting by arrow": true
-  };
-  if (env.pictureOptions?.[">"] !== undefined) arrowOptions[">"] = env.pictureOptions[">"];
-  const { style: acceptingStyle } = normalizeOptions("draw", arrowOptions, env);
-  const stroke = acceptingStyle.stroke || "black";
-  const lineWidth = acceptingStyle.lineWidth || lineWidthFromPt(0.4);
-  ir.items.push(createPathShape(
-    [moveToCommand(border), lineToCommand(end)],
-    {
-      stroke,
-      fill: "none",
-      lineWidth,
-      lineCap: acceptingStyle.lineCap,
-      lineJoin: acceptingStyle.lineJoin,
-      dashArray: acceptingStyle.dashArray,
-      dashLineCap: acceptingStyle.dashLineCap,
-      opacity: acceptingStyle.opacity,
-      strokeOpacity: acceptingStyle.strokeOpacity,
-      markerEnd: acceptingStyle.markerEnd || createArrowTip("to", { fill: stroke, stroke })
-    },
-    { subtype: "automata-accepting", nodeId: node.name }
-  ));
-  addAutomataAcceptingText(end, angle, semantic, acceptingStyle, textStyle, textFont, env, ir);
-}
-
-function addAutomataAcceptingText(end, angle, semantic, acceptingStyle, textStyle, textFont, env, ir) {
-  const rawText = semantic["accepting text"] === undefined ? "" : stripOuterBraces(String(semantic["accepting text"]));
-  const text = String(rawText || "").trim();
-  if (!text) return;
-  const normalizedAngle = ((angle % 360) + 360) % 360;
-  const anchor = normalizedAngle === 0 ? "start" : normalizedAngle === 180 ? "end" : "middle";
-  const side = normalizedAngle === 90 ? 1 : normalizedAngle === 270 ? -1 : 0;
-  const fontSizePt = Number(textFont?.sizePt) || 10;
-  const labelBox = measurePlainTextTeXBoxPt(text, {
-    fontSizePt,
-    fontFamily: textStyle.fontFamily
-  });
-  const verticalOffset = side * ((Number(labelBox?.height) || 0) + (Number(labelBox?.depth) || 0)) / (2 * TEX_PT_PER_CM);
-  ir.items.push({
-    type: "textNode",
-    subtype: "automata-accepting-text",
-    x: end.x,
-    y: roundNumber(end.y + verticalOffset),
-    text,
-    font: textFont,
-    style: {
-      ...textStyle,
-      fill: acceptingStyle.textFill || textStyle.fill || "black"
-    },
-    svgTextAnchor: anchor,
-    svgTextX: end.x,
-    "tikzkit automata accepting angle": normalizedAngle
-  });
+  // The far endpoint carries an ordinary rectangle, even when its text is
+  // empty. Its anchor includes outer sep; its unpainted background contributes
+  // to the TeX page. The state's local fill, font and padding are out of scope.
+  const text = stripOuterBraces(String(semantic[kind + " text"] ?? (initial ? "start" : "")));
+  const labelEnv = { ...env, pictureOptions: path.options };
+  const nodes = [];
+  addInlinePathNode({ options: { shape: "rectangle", anchor: direction.anchor } },
+    text, labelAt, nodes, labelEnv, {}, null, path.options);
+  const [label] = nodes;
+  label.automataLabel = kind;
+  addNodeItems(label, ir, labelEnv);
 }
 
 function computerModernOpticalTextFamily(text, font = {}, currentFamily = "") {

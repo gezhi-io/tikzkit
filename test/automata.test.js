@@ -39,7 +39,10 @@ test("renders automata state, accepting double outline, and directional initial 
   const entry = assertNativePlainText(browserResult.svg, "entry");
   assert.equal(starts.length, 3);
   assert.ok(starts[0].x < initialLabels[0].x * 100, "left-side label extends away from its end anchor");
-  assert.ok(Math.abs(entry.x - initialLabels[1].svgTextX * 100) < .001);
+  // The native west anchor is on the rectangle, not on its first glyph.
+  // tikz's .3333em inner sep and default .2pt outer sep sit between them.
+  const entryGapPt = (entry.x / 100 - right[0].x) * (72.27 / 2.54);
+  assert.ok(Math.abs(entryGapPt - 3.533) < .002, `entry gap: ${entryGapPt} TeX pt`);
 
   const withoutDefaultLabel = tikzToSvg(String.raw`
     \begin{tikzpicture}
