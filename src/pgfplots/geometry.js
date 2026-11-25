@@ -930,10 +930,10 @@ function projectedMiddleAxisRanges(axisOptions = {}, ranges = {}, options = {}) 
       result[`${axis}Min`] = adjusted.min;
       result[`${axis}Max`] = adjusted.max;
     }
-    return roundTransformRanges(result, axisOptions);
+    return roundTransformRanges(result, axisOptions, ranges);
   }
   if (!axisHasEnabledEnlargeLimits(axisOptions)) {
-    return roundTransformRanges(result, axisOptions);
+    return roundTransformRanges(result, axisOptions, ranges);
   }
   if (!isLogAxis(axisOptions, "x") && axisEnlargeEnabledFor(axisOptions, "x") && (options.axisLines || !hasAxisSpecificEnlargeOption(axisOptions, "x"))) {
     const adjusted = middleAxisTransformAxisRange(axisOptions, "x", result.xMin, result.xMax);
@@ -945,7 +945,7 @@ function projectedMiddleAxisRanges(axisOptions = {}, ranges = {}, options = {}) 
     result.yMin = adjusted.min;
     result.yMax = adjusted.max;
   }
-  return roundTransformRanges(result, axisOptions);
+  return roundTransformRanges(result, axisOptions, ranges);
 }
 
 function hasAxisSpecificEnlargeOption(axisOptions = {}, axis = "x") {
@@ -1053,19 +1053,19 @@ function relativeAxisEnlargeRange(axisOptions = {}, axis, min, max) {
   };
 }
 
-function roundTransformRanges(ranges, axisOptions = {}) {
-  return {
-    xMin: roundTransformAxisValue(ranges.xMin, isLogAxis(axisOptions, "x"), "x"),
-    xMax: roundTransformAxisValue(ranges.xMax, isLogAxis(axisOptions, "x"), "x"),
-    yMin: roundTransformAxisValue(ranges.yMin, isLogAxis(axisOptions, "y"), "y"),
-    yMax: roundTransformAxisValue(ranges.yMax, isLogAxis(axisOptions, "y"), "y"),
-    zMin: roundTransformAxisValue(ranges.zMin, isLogAxis(axisOptions, "z"), "z"),
-    zMax: roundTransformAxisValue(ranges.zMax, isLogAxis(axisOptions, "z"), "z")
-  };
-}
-
-function roundTransformAxisValue(value, logMode, axis) {
-  return logMode ? Number(Number(value).toPrecision(12)) : roundAxisRange(value, axis);
+function roundTransformRanges(ranges, axisOptions, surveyed) {
+  const result = {};
+  for (const axis of ["x", "y", "z"]) {
+    const bounds = [axis + "Min", axis + "Max"];
+    // Preserve the precision selected by the survey. Rounding a density such
+    // as 1/30000 to three decimal places can collapse the entire canvas axis.
+    const precise = isLogAxis(axisOptions, axis) || bounds.some(key =>
+      Number.isFinite(surveyed[key]) && surveyed[key] !== roundAxisRange(surveyed[key], axis));
+    for (const key of bounds) {
+      result[key] = precise ? Number(Number(ranges[key]).toPrecision(12)) : roundAxisRange(ranges[key], axis);
+    }
+  }
+  return result;
 }
 
 function axisHasExplicitDisabledEnlargeLimits(axisOptions = {}) {

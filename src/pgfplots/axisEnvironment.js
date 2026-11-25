@@ -1,5 +1,6 @@
 import { parseOptions, styleDefinitionsFromOptions } from "../engine/options.js";
 import { renderPgfplotsAxisAsTikz } from "./axisTikzLowering.js";
+import { createHistogramRandomSurvey } from "./histogramRandom.js";
 
 export const PGFPLOTS_ENVIRONMENTS = [
   { name: "semilogxaxis", defaultOptions: { xmode: "log" } },
@@ -34,6 +35,7 @@ export function expandPgfplotsAxes(
   // Keep the prior primary plot box available to a hidden-x right-axis overlay
   // without adding an observable option to callers of this public seam.
   const layoutState = { pictureStart: null, primaryAxis: null };
+  const histogramRandom = createHistogramRandomSurvey(source);
   while (index < source.length) {
     const axisEnvironment = findNextPgfplotsEnvironment(source, index);
     if (!axisEnvironment) {
@@ -62,6 +64,10 @@ export function expandPgfplotsAxes(
     const localRuntimeOptions = withLocalPgfplotsStyleDefinitions(source, axisEnvironment.beginIndex, options);
     // Do not retain this rendering-only layout state on the caller's options.
     const runtimeOptions = localRuntimeOptions === options ? { ...options } : localRuntimeOptions;
+    if (histogramRandom) {
+      histogramRandom.observe(source.slice(index, cursor));
+      Object.defineProperty(runtimeOptions, "histogramRandom", { value: histogramRandom });
+    }
     Object.defineProperty(runtimeOptions, "__tikzkitPgfplotsAxisLayoutState", {
       value: layoutState,
       enumerable: false
@@ -80,6 +86,9 @@ export function expandPgfplotsAxes(
       axisDependencies
     );
     output += scaleLoweredPgfplotsPathStyles(renderedAxis, pictureScale);
+    // Later TikZ statements run in the evaluator, after these survey draws.
+    const finalSeed = histogramRandom?.endAxis(axisEnvironment.end);
+    if (finalSeed !== undefined) output += "\n\\pgfmathsetseed{" + finalSeed + "};\n";
     index = endIndex + axisEnvironment.end.length;
   }
   return output;
@@ -226,11 +235,17 @@ function skipWhitespace(text, index) {
 function extractBalanced(text, start, open, close) {
   if (text[start] !== open) return null;
   let depth = 0;
+  let braces = 0;
   for (let index = start; index < text.length; index += 1) {
     const char = text[index];
     if (char === "\\" && index + 1 < text.length) {
       index += 1;
       continue;
+    }
+    if (open === "[") {
+      if (char === "{") braces++;
+      if (char === "}") braces = Math.max(0, braces - 1);
+      if (braces) continue;
     }
     if (char === open) depth += 1;
     if (char === close) {

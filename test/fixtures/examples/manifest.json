@@ -8819,6 +8819,27 @@
       "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.libs.statistics.tex",
       "semanticOwner": "src/pgfplots/boxplotStatistics.js:summarizeBoxplot",
       "features": ["boxplot", "single-column table", "sample quantiles", "explicit category unit"]
+    },
+    {
+      "id": "hist-manual-const",
+      "title": "A frequency histogram drawn as steps",
+      "source": "pgfplots/hist-manual-const.tex",
+      "sourceCorpus": "TeX Live PGFPlots statistics manual",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.libs.statistics.tex",
+      "semanticOwner": "src/pgfplots/histogram.js:lowerHistogramPlot",
+      "features": ["hist", "three bins", "hist/handler", "const plot", "one-column table"]
+    },
+    {
+      "id": "hist-manual-cumulative-x",
+      "title": "Cumulative counts of 8,000 normally distributed observations",
+      "source": "pgfplots/hist-manual-cumulative-x.tex",
+      "sourceCorpus": "TeX Live PGFPlots statistics manual",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.libs.statistics.tex",
+      "semanticOwner": "src/pgfplots/histogram.js:lowerHistogramPlot",
+      "features": ["hist/data=x", "cumulative", "one-column plot file", "ybar interval", "half-open tick labels"],
+      "resources": [
+        { "name": "plotdata/pgfplots.randn.dat", "source": "pgfplots/plotdata/pgfplots.randn.dat" }
+      ]
     }
   ]
 }

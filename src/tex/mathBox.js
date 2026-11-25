@@ -192,7 +192,14 @@ function build(node, ctx) {
     case "mathord": return glyph(node.text, ctx, true);
     case "textord": return glyph(node.text, ctx, false);
     case "atom": return glyph(node.text, ctx, false, node.family);
-    case "ordgroup": return list(node.body, ctx);
+    case "ordgroup": {
+      const box = list(node.body, ctx);
+      // An explicit {...} is an ordinary noad to its neighbors: PGF's
+      // 8{,}000 suppresses the comma glue that a mathematical list needs.
+      // KaTeX also uses this node for transparent \begingroup scopes.
+      if (!node.semisimple) box.atom = "ord";
+      return box;
+    }
     case "color": return list(node.body, { ...ctx, color: node.color });
     case "mclass": return { ...list(node.body, ctx), atom: node.mclass.slice(1), character: false };
     case "font":

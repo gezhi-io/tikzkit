@@ -22,18 +22,21 @@ export function splitTopLevel(input, delimiter = ",") {
   let brace = 0;
   for (let i = 0; i < input.length; i += 1) {
     const char = input[i];
-    if (char === "(") paren += 1;
-    if (char === ")") paren = Math.max(0, paren - 1);
-    if (char === "[" && paren === 0 && brace === 0 && isBareDelimiterOptionBracket(current)) {
-      current += char;
+    if (char === "\\" && i + 1 < input.length) {
+      current += char + input[++i];
       continue;
     }
-    if (char === "[") bracket += 1;
-    if (char === "]") bracket = Math.max(0, bracket - 1);
+    // TeX groups protect literal punctuation, e.g. xticklabel={$[a,b)$}.
+    if (brace === 0) {
+      if (char === "(") paren += 1;
+      if (char === ")") paren = Math.max(0, paren - 1);
+      if (char === "[" && !(paren === 0 && isBareDelimiterOptionBracket(current))) bracket += 1;
+      if (char === "]") bracket = Math.max(0, bracket - 1);
+    }
     if (char === "{") brace += 1;
     if (char === "}") brace = Math.max(0, brace - 1);
 
-    if (char === delimiter && !isEscapedCharacter(input, i) && paren === 0 && bracket === 0 && brace === 0) {
+    if (char === delimiter && paren === 0 && bracket === 0 && brace === 0) {
       parts.push(current.trim());
       current = "";
     } else {
@@ -44,14 +47,6 @@ export function splitTopLevel(input, delimiter = ",") {
     parts.push(current.trim());
   }
   return parts.filter((part) => part.length > 0);
-}
-
-function isEscapedCharacter(input, index) {
-  let backslashes = 0;
-  for (let cursor = index - 1; cursor >= 0 && input[cursor] === "\\"; cursor -= 1) {
-    backslashes += 1;
-  }
-  return backslashes % 2 === 1;
 }
 
 export function isBareDelimiterOptionBracket(prefix = "") {

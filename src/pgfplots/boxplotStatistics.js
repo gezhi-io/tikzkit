@@ -1,5 +1,5 @@
-import { PGF_SP, pgfDimension, pgfFixedMultiply, pgfPrintDimension } from "../engine/pgf-fixed-point.js";
 import { pgfplotsCompatAtLeast } from "./compat.js";
+import { texAdd, texLess, texMultiply } from "./surveyFloat.js";
 
 // tikzlibrarypgfplots.statistics.code.tex: /pgfplots/boxplot/estimator choices.
 const estimators = new Map([
@@ -18,28 +18,6 @@ const estimators = new Map([
 function midpoint(a, b) {
   const sum = a + b;
   return Number.isFinite(sum) ? sum / 2 : a / 2 + b / 2;
-}
-
-// pgflibraryfpu.code.tex: discrete ranks and fences depend on TeX arithmetic.
-// Addition aligns extended mantissas in [100,1000); products use [10,100).
-function extendedParts(value, places) {
-  const [m, e] = value.toExponential().split("e");
-  return [pgfDimension(`${m}e${places}`), Number(e) - places];
-}
-
-function texAdd(a, b) {
-  if (!a || !b || !Number.isFinite(a) || !Number.isFinite(b)) return a + b;
-  const [ma, ea] = extendedParts(a, 2), [mb, eb] = extendedParts(b, 2);
-  const e = Math.max(ea, eb);
-  const aligned = (m, exp) => Math.trunc(m * PGF_SP / 10 ** (e - exp));
-  const sum = (aligned(ma, ea) + aligned(mb, eb)) / PGF_SP;
-  return Number(`${pgfPrintDimension(sum)}e${e}`);
-}
-
-function texMultiply(a, b) {
-  if (!a || !b || !Number.isFinite(a) || !Number.isFinite(b)) return a * b;
-  const [ma, ea] = extendedParts(a, 1), [mb, eb] = extendedParts(b, 1);
-  return Number(`${pgfPrintDimension(pgfFixedMultiply(ma, mb))}e${ea + eb}`);
 }
 
 function quantile(data, p, estimator, backend) {
@@ -89,18 +67,6 @@ function numberOption(value, fallback) {
 function statistic(option, computed) {
   if (option === undefined || option === "auto") return computed;
   return numberOption(option, null);
-}
-
-// pgflibraryfpu.code.tex: floatlessthan compares sign, exponent, then
-// normalized mantissas as TeX dimensions. In particular -.2 is not below
-// a computed fence of -.19999999999999998 in TeX; it is in Lua.
-function texLess(a, b) {
-  if (!(a < b)) return false;
-  if (Math.sign(a) !== Math.sign(b) || !Number.isFinite(b - a) ||
-      (b - a) * PGF_SP > Math.max(Math.abs(a), Math.abs(b))) return true;
-  const [ma, ea] = a.toExponential().split("e");
-  const [mb, eb] = b.toExponential().split("e");
-  return ea !== eb || pgfDimension(ma) !== pgfDimension(mb);
 }
 
 /**

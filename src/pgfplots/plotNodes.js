@@ -4,25 +4,28 @@ import { axisNumber } from "./coordinates.js";
 import { formatAxisNumber, formatAxisPoint, formatAxisTickLabel, joinOptions } from "./format.js";
 import { evaluateAxisExpression } from "./expressions.js";
 import { pgfNumberFormatOptions } from "../pgf/numberFormat.js";
-import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./histogram.js";
+import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./intervalPlots.js";
 import { plotColorValue, selectPlotColor } from "./plotStyle.js";
 
 export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}, plotIndex = 0, barLayout) {
   if (!axisOptions["nodes near coords"] && !plot.options?.["nodes near coords"]) return [];
+  const histogram = Boolean(plot.options?.["pgfplots histogram"]);
   const orientation = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "y") ? "y" : "x";
-  const points = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, orientation)
+  // Histogram labels belong to the marks phase, not to rectangle subpaths.
+  // It visits the final generated tuple even when that tuple only ends a bar.
+  const points = !histogram && isPgfplotsIntervalPlot(axisOptions, plot.options || {}, orientation)
     ? (plot.pgfplotsStacked ? (plot.points || []) : pgfplotsIntervalDataPoints(plot, axisOptions, orientation))
         .filter((point) => !point.stackIgnored)
     : (plot.points || []).filter((point) => !point.stackIgnored);
   const stackedBarAxis = stackedBarOrientation(plot, axisOptions);
   const group = plot.barGroup;
   const style = joinOptions([
-    group ? (axisOptions.font && `font=${axisOptions.font}`) : "font=\\scriptsize",
+    group || histogram ? (axisOptions.font && `font=${axisOptions.font}`) : "font=\\scriptsize",
     nodeNearCoordTextColor(plot.options || {}, plotIndex),
     ...nodeNearCoordStyles(axisOptions),
     ...nodeNearCoordStyles(plot.options || {})
   ]);
-  const offset = stackedBarAxis || group ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
+  const offset = stackedBarAxis || group || histogram ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
   return points.map((point, pointIndex) => {
     const positionedPoint = stackedBarAxis
       ? stackedBarNodePoint(point, axisOptions, stackedBarAxis)

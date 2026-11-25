@@ -1,11 +1,10 @@
-import { parseOptions, stripOuterBraces } from "../engine/options.js";
+import { parseOptions } from "../engine/options.js";
 import { pgfplotsOptionEnabled } from "./axisOptions.js";
 import { boxplotPoint, boxplotSurveyPoints } from "./boxplotGeometry.js";
 import { summarizeBoxplot } from "./boxplotStatistics.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
-import { evaluateAxisExpression } from "./expressions.js";
 import { mergePgfplotsOptionMaps } from "./namedOptions.js";
-import { sampleFunctionDataPoints, sampleParametricDataPoints } from "./rangeResolver.js";
+import { scalarSurveyNumber, scalarSurveyRows } from "./scalarSurvey.js";
 
 const fields = {
   "lower whisker": "lowerWhisker", "lower quartile": "lowerQuartile", median: "median",
@@ -55,20 +54,10 @@ function boxplotSettings(axis, plot, styles) {
 }
 
 function numeric(raw, point, context, index) {
-  if (typeof raw === "number") return raw;
-  if (typeof raw !== "string" || !raw.trim()) return NaN;
-  let source = stripOuterBraces(raw.trim());
-  const literal = Number(source);
-  if (Number.isFinite(literal)) return literal;
-  const operand = value => value !== undefined && String(value).trim() && Number.isFinite(Number(value))
-    ? "(" + Number(value) + ")" : "nan";
-  source = source.replace(/\\(?:plotnumofactualtype|plotnum|coordindex)\b/g, macro =>
-    operand(macro === "\\plotnumofactualtype" ? context.ordinal : macro === "\\plotnum" ? context.plotIndex : index))
-    .replace(/\\thisrow\s*\{([^{}]+)\}/g, (_, key) => operand(point?.columns?.[key.trim()]))
-    .replace(/\\pgfkeysvalueof\s*\{\/data point\/([xyz])\}/g, (_, axis) => operand(point?.[axis]))
-    .replace(/\\(?:pgfkeysvalueof\s*\{\/pgfplots\/boxplot\/|boxplotvalue\s*\{)box extend\}/g,
-      () => operand(context.boxExtend));
-  return evaluateAxisExpression(source, point?.x, context.axis, { y: point?.y, z: point?.z });
+  const value = typeof raw === "string" ? raw.replace(
+    /\\(?:pgfkeysvalueof\s*\{\/pgfplots\/boxplot\/|boxplotvalue\s*\{)box extend\}/g,
+    () => `(${context.boxExtend ?? "nan"})`) : raw;
+  return scalarSurveyNumber(value, point, context, index);
 }
 
 function emptyCoordinates(plot) {
@@ -89,9 +78,7 @@ function prepareBoxplot(plot, config, context, options, diagnostics) {
   const customHook = Object.keys(settings).find(key => key.startsWith("draw/") ||
     key.startsWith("variable width expr") || key.startsWith("data filter"));
   if (customHook) return unsupported("custom TeX hook '" + customHook + "' is not supported");
-  const rows = plot.type === "coordinates" ? plot.points : plot.type === "function"
-    ? sampleFunctionDataPoints(plot, axis, options) : plot.type === "parametric"
-      ? sampleParametricDataPoints(plot, axis, options) : undefined;
+  const rows = scalarSurveyRows(plot, axis, options);
   if (!rows) return unsupported("unsupported sample source");
   const read = (key, fallback) => settings[key] === undefined ? fallback
     : numeric(settings[key], rows.at(-1), context, Math.max(0, rows.length - 1));

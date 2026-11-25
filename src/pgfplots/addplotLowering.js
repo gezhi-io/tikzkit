@@ -76,16 +76,17 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       return point.breakBefore ? { ...mapped, breakBefore: true } : mapped;
     });
     const commands = [];
+    const histPaint = plot.options["pgfplots histogram"] ? filledPlotPaint(plot.options, axisOptions) : null;
     const barAxis = ["y", "x"].find(axis => isAxisBarPlot(axisOptions, plot.options, axis));
     if (barAxis) {
       const layout = createBarLayout(axisOptions, plot.options, geometry, barAxis, ranges, plot.barGroup);
-      const clip = plot.barGroup ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
+      const clip = plot.barGroup || histPaint ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
       commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip));
       commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex, barAxis, layout));
       if (shouldRenderPlotMarks(plot.options)) {
         // PGF marks the surveyed coordinate, not the shifted bar rectangle.
         (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry,
-          plotIndex, filledPlotPaint(plot.options, axisOptions).mark));
+          plotIndex, (histPaint ?? filledPlotPaint(plot.options, axisOptions)).mark));
       }
       (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex, layout));
       return commands;
@@ -94,20 +95,27 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const style = joinOptions([
         "axis plot",
         "axis closed cycle",
-        selectPlotStyle(plot.options, plotIndex),
-        filledPlotPaint(plot.options, axisOptions).fillStyle,
-        plotFillOpacityOption(plot.options),
+        histPaint?.style ?? joinOptions([selectPlotStyle(plot.options, plotIndex),
+          filledPlotPaint(plot.options, axisOptions).fillStyle, plotFillOpacityOption(plot.options)]),
         pgfplotsNamePathOption(plot.options),
         pgfplotsPlotClipOption(axisOptions, geometry)
       ]);
-      const pointChain = stackedClosedCyclePointChain(
+      let pointChain = stackedClosedCyclePointChain(
         plot,
         dataPoints,
         mappedPoints,
         axisOptions,
         geometry,
         ranges
-      ) || `${mappedPoints.map(formatAxisPoint).join(" -- ")} -- cycle`;
+      );
+      if (!pointChain && histPaint) {
+        const { yMin, yMax } = axisPlotClipRanges(ranges, geometry);
+        const baseline = clampAxisBaseline(0, yMin, yMax);
+        const base = p => formatAxisPoint(geometry.mapPoint({ x: p.x, y: baseline }));
+        pointChain = [axisPlotPointChain(mappedPoints, axisOptions, plot.options),
+          base(dataPoints.at(-1)), base(dataPoints[0]), "cycle"].join(" -- ");
+      }
+      pointChain ||= mappedPoints.map(formatAxisPoint).concat("cycle").join(" -- ");
       commands.push(`\\draw[${style}] ${pointChain};`);
     }
     if (isAxisCombPlot(axisOptions, plot.options, "y")) {
@@ -117,10 +125,11 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
     }
-    if (!plot.closedCycle && shouldRenderAxisPlotPath(plot.options) && mappedPoints.length) {
+    const fillOnly = histPaint && histPaint.fillStyle !== "fill=none" && !plot.options["only marks"];
+    if (!plot.closedCycle && (shouldRenderAxisPlotPath(plot.options) || fillOnly) && mappedPoints.length) {
       const style = joinOptions([
         "axis plot",
-        selectPlotStyle(plot.options, plotIndex),
+        histPaint?.style ?? selectPlotStyle(plot.options, plotIndex),
         pgfplotsNamePathOption(plot.options),
         pgfplotsPlotClipOption(axisOptions, geometry)
       ]);
@@ -128,7 +137,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     }
     commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     if (shouldRenderPlotMarks(plot.options)) {
-      (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+      (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex, histPaint?.mark));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, mappedPoints, selectPlotColor(plot.options, plotIndex)));
     (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));

@@ -2,7 +2,7 @@ import { axisNumber } from "./coordinates.js";
 import { evaluateAxisExpression, evaluateAxisExpressionSamples } from "./expressions.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { roundAxisRange } from "./format.js";
-import { pgfplotsPlotRangePoints } from "./histogram.js";
+import { pgfplotsPlotRangePoints } from "./intervalPlots.js";
 import { isAxisQuiverPlot, parseQuiverOptions, quiverScale, quiverUpdatesLimits } from "./quiverOptions.js";
 import { isLogAxis } from "./ranges.js";
 import { axisLogBase, axisPointIsValidForScale, axisValueIsValidForScale } from "./logAxis.js";
@@ -252,9 +252,9 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
   if (enlargeZ && !zLog && (axisOptions["pgfplots 3d surface"] || addplots.some(plot => plot.is3d))) {
     [zMin, zMax] = enlarge3DZRange(axisOptions, zMin, zMax, hasExplicitZMin, hasExplicitZMax);
   }
-  // Round only after projecting. A small boxplot may span less than .001
-  // in data units, and a surface must retain its true outer facet endpoints.
-  const preciseFrame = hasSurfacePlot || addplots.some(plot => plot.boxplot);
+  // Small quartile ranges and probability densities can be below .001 in
+  // data units. Keep those and the outer surface facets distinct on projection.
+  const preciseFrame = hasSurfacePlot || addplots.some(plot => plot.boxplot || plot.histogram);
   const ranges = {
     xMin: roundResolvedAxisValue(xMin, xLog || preciseFrame || errorX, "x"),
     xMax: roundResolvedAxisValue(xMax, xLog || preciseFrame || errorX, "x"),
@@ -311,6 +311,12 @@ export function axisSamples(raw, maxSamples) {
   return Math.max(2, Math.min(maxSamples, Math.round(parsed)));
 }
 
+function sampleVariable(plot, axis) {
+  const raw = plot.options?.variable ?? axis.variable;
+  const name = typeof raw === "string" && /^\\([A-Za-z@]+)$/.exec(raw.trim())?.[1];
+  return name && name !== "x" ? name : undefined;
+}
+
 export function sampleFunctionDataPoints(plot, axisOptions = {}, options = {}) {
   const plotDomain = options.domain || parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
   const explicitSamples = parseSamplesAt(plot.options["samples at"] ?? axisOptions["samples at"]);
@@ -326,7 +332,10 @@ export function sampleFunctionDataPoints(plot, axisOptions = {}, options = {}) {
   const contextDomain = explicitSamples.length
     ? { start: sampleValues[0], end: sampleValues[sampleValues.length - 1] }
     : plotDomain;
-  const values = evaluateAxisExpressionSamples(plot.expression, sampleValues, axisOptions, { domain: contextDomain });
+  const values = evaluateAxisExpressionSamples(plot.expression, sampleValues, axisOptions, {
+    domain: options.scalarSurvey ? undefined : contextDomain, sampleVariable: sampleVariable(plot, axisOptions)
+  });
+  if (options.scalarSurvey) return sampleValues.map((x, i) => ({ x, y: values[i] }));
   const jump = String(plot.options["unbounded coords"] ?? axisOptions["unbounded coords"] ?? "discard").trim() === "jump";
   const points = [];
   let interrupted = false;
@@ -383,16 +392,18 @@ export function parseSamplesAt(raw) {
 export function sampleParametricDataPoints(plot, axisOptions = {}, options = {}) {
   const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
   const samples = axisSamples(plot.options.samples || axisOptions.samples || options.pgfplotsSamples || 25, options.pgfplotsSamples || 1200);
+  const variable = sampleVariable(plot, axisOptions);
   const dataPoints = [];
   for (let index = 0; index < samples; index += 1) {
     const t = samples === 1 ? 0 : index / (samples - 1);
     const x = plotDomain.start + (plotDomain.end - plotDomain.start) * t;
-    const px = evaluateAxisExpression(plot.xExpression, x, axisOptions);
-    const py = evaluateAxisExpression(plot.yExpression, x, axisOptions);
+    const scope = variable ? { [variable]: x } : undefined;
+    const px = evaluateAxisExpression(plot.xExpression, x, axisOptions, scope);
+    const py = evaluateAxisExpression(plot.yExpression, x, axisOptions, scope);
     const pz = plot.is3d && plot.zExpression !== undefined
-      ? evaluateAxisExpression(plot.zExpression, x, axisOptions)
+      ? evaluateAxisExpression(plot.zExpression, x, axisOptions, scope)
       : undefined;
-    if (Number.isFinite(px) && Number.isFinite(py) && (!plot.is3d || Number.isFinite(pz))) {
+    if (options.scalarSurvey || (Number.isFinite(px) && Number.isFinite(py) && (!plot.is3d || Number.isFinite(pz)))) {
       dataPoints.push(plot.is3d ? { x: px, y: py, z: pz } : { x: px, y: py });
     }
   }

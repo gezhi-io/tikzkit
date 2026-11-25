@@ -87,6 +87,29 @@ An empty coordinate list still draws the box.
  · [Three prepared groups](../test/fixtures/examples/pgfplots/boxplot-manual-prepared.tex)
  · [Browser and native comparison](qa/2026-11-25-pgfplots-boxplots.md).
 
+## PGFPlots Histograms
+
+To count observations in the x column, select `data=x` explicitly. This
+example has two bins of width 2. Their counts are 2 and 3, so the cumulative
+fractions are 0.4 and 1:
+
+```tex
+\begin{tikzpicture}
+  \begin{axis}[xmin=0,xmax=4,ymin=0,ymax=1]
+    \addplot+[hist={data=x,bins=2,cumulative,density}] coordinates {
+      (0,0) (1,0) (2,0) (3,0) (4,0)
+    };
+  \end{axis}
+\end{tikzpicture}
+```
+
+Requires `\usepackage{pgfplots}`. For an ordinary density, omit `cumulative`;
+the **area**, not the sum of the heights, is then one. Try the manual's
+[step histogram](../test/fixtures/examples/pgfplots/hist-manual-const.tex)
+or its [8,000-observation example](../test/fixtures/examples/pgfplots/hist-manual-cumulative-x.tex)
+with the accompanying [data file](../test/fixtures/examples/pgfplots/plotdata/pgfplots.randn.dat).
+The [visual comparison](qa/2026-11-25-pgfplots-histograms.md) shows what changed.
+
 ## Polar Functions
 
 | TikZKit in Chromium | Local tikztosvg in Chromium |

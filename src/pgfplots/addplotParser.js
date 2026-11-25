@@ -3,14 +3,19 @@ import { axisNumber, parseCoordinateList, parsePgfplotsPointMeta, setExplicitPoi
 import { parsePgfplotsDateCoordinate } from "./dateCoordinates.js";
 import { sampleRawGnuplotAddplot } from "./gnuplot.js";
 import { expandPgfplotsNamedOptions } from "./namedOptions.js";
+import { parsePlotFilePoints } from "./plotFile.js";
 
-export function parseAddplots(body, options = {}, diagnostics = []) {
+export function parseAddplots(body, options = {}, diagnostics = [], visitStatement) {
   body = expandPgfplotsAddplotForeach(body);
   const plots = [];
   let index = 0;
   while (index < body.length) {
     const start = body.indexOf("\\addplot", index);
-    if (start === -1) break;
+    if (start === -1) {
+      visitStatement?.(body.slice(index));
+      break;
+    }
+    const slot = plots.length;
     let cursor = start + "\\addplot".length;
     let is3d = false;
     if (body[cursor] === "3") {
@@ -80,6 +85,23 @@ export function parseAddplots(body, options = {}, diagnostics = []) {
         });
         cursor = table.end;
       }
+    } else if (!is3d && body.startsWith("file", cursor) && isCommandBoundary(body, cursor + 4)) {
+      const fileOptions = parseOptionalOptions(body, skipWhitespace(body, cursor + 4));
+      const file = extractBalanced(body, skipWhitespace(body, fileOptions.end), "{", "}");
+      if (file) {
+        const text = resolvePgfplotsDataFile(file.content.trim(), options, diagnostics, "file");
+        plots.push({
+          type: "coordinates",
+          source: "file",
+          is3d,
+          options: plotOptions,
+          points: parsePlotFilePoints(text, { ...options.pgfplotsStyleOptions, ...options.pgfplotsAxisOptions },
+            plotOptions, parseOptions(fileOptions.raw)),
+          nodes: parseAddplotInlineNodes(body.slice(file.end, statementEnd === -1 ? body.length : statementEnd), options),
+          closedCycle
+        });
+        cursor = file.end;
+      }
     } else if (body.startsWith("gnuplot", cursor)) {
       cursor += "gnuplot".length;
       const gnuplotOptions = parseOptionalOptions(body, cursor);
@@ -128,6 +150,10 @@ export function parseAddplots(body, options = {}, diagnostics = []) {
         });
         cursor = expression.end;
       }
+    }
+    if (visitStatement) {
+      const surveyed = visitStatement(body.slice(index, start), plots[slot], statement);
+      if (surveyed) plots[slot] = surveyed;
     }
     const semicolon = findStatementEnd(body, cursor);
     index = semicolon === -1 ? cursor : semicolon + 1;
@@ -365,12 +391,15 @@ function parseAddplotInlineNodes(tail, options = {}) {
 function resolvePgfplotsTableContent(content, options = {}, diagnostics = []) {
   const text = String(content || "").trim();
   const looksLikeFile = text && !/[\r\n]/.test(text) && !/\s/.test(text) && /\.[A-Za-z0-9]+$/.test(text);
-  if (!looksLikeFile) return content;
+  return looksLikeFile ? resolvePgfplotsDataFile(text, options, diagnostics, "table file") : content;
+}
+
+function resolvePgfplotsDataFile(name, options, diagnostics, kind) {
   if (typeof options.pgfplotsTableResolver === "function") {
-    const resolved = options.pgfplotsTableResolver(text);
+    const resolved = options.pgfplotsTableResolver(name);
     if (resolved !== undefined && resolved !== null) return String(resolved);
   }
-  diagnostics.push({ severity: "warning", message: `Could not resolve pgfplots table file '${text}'` });
+  diagnostics.push({ severity: "warning", message: `Could not resolve pgfplots ${kind} '${name}'` });
   return "";
 }
 

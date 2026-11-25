@@ -21,6 +21,7 @@ import { renderAxisLabels } from "./labels.js";
 import { renderAxis3DBackground } from "./axis3d.js";
 import { renderLegendEntries } from "./legend.js";
 import { preparePgfplotsHistogram } from "./histogram.js";
+import { isPgfplotsIntervalPlot } from "./intervalPlots.js";
 import { preparePgfplotsBoxplots } from "./boxplots.js";
 import { axisRenderedTickLabels, axisTickLabelInnerSep, axisTickLabelStyleOptions, axisTickNumberFormat, normalizedTickAlignment, renderAxisTicks } from "./ticks.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
@@ -41,18 +42,18 @@ const PGFPLOTS_OUTER_BBOX_X_COMPENSATION = "1.7pt";
 export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagnostics = [], dependencies = {}) {
   const preparedAxisOptions = dependencies.preparePgfplotsAxisOptions(axisOptions, options);
   const dateContext = createPgfplotsDateContext(preparedAxisOptions);
-  const parsedAddplots = dependencies.parseAddplots(body, { ...options, pgfplotsDateContext: dateContext }, diagnostics);
+  const parsedAddplots = dependencies.parseAddplots(body, { ...options, pgfplotsDateContext: dateContext,
+    pgfplotsAxisOptions: preparedAxisOptions }, diagnostics,
+    options.histogramRandom?.forAxis(preparedAxisOptions, options));
   const dateAxisOptions = normalizePgfplotsDateAxisOptions(preparedAxisOptions, parsedAddplots, dateContext);
   const areaAxisOptions = normalizePgfplotsAreaOptions(dateAxisOptions);
-  const histogram = preparePgfplotsHistogram(
-    withBarCategoryTicks(areaAxisOptions),
-    parsedAddplots
-  );
-  const symbolic = normalizePgfplotsSymbolicCoordinates(histogram.addplots, histogram.axisOptions);
   const declaredFunctions = dependencies.parsePgfplotsDeclaredFunctions([
     ...(options.pgfplotsDeclareFunctions || []),
     ...dependencies.optionValues(preparedAxisOptions["declare function"])
   ]);
+  const histogram = preparePgfplotsHistogram({ ...withBarCategoryTicks(areaAxisOptions),
+    "pgfplots declared functions": declaredFunctions }, parsedAddplots, options, diagnostics);
+  const symbolic = normalizePgfplotsSymbolicCoordinates(histogram.addplots, histogram.axisOptions);
   const boxplots = preparePgfplotsBoxplots({ ...symbolic.axisOptions,
     "pgfplots declared functions": declaredFunctions,
     "pgfplots compat": preparedAxisOptions.compat ?? options.pgfplotsStyleOptions?.compat
@@ -385,7 +386,7 @@ function renderCurrentAxisCoordinates(axisModel = {}) {
 function barAxisLabelOptions(axisModel) {
   const { options, ticks, geometry } = axisModel;
   const grouped = options["pgfplots bar category axis"];
-  if (!(grouped || optionEnabled(options["ybar interval"])) || !pgfplotsUsesNative2DText(options) || isMiddleAxis(options) ||
+  if (!(grouped || isPgfplotsIntervalPlot(options)) || !pgfplotsUsesNative2DText(options) || isMiddleAxis(options) ||
     !pgfplotsCompatAtLeast(pgfplotsCompatLevel(options), "1.3")) return options;
   const measured = { ...options };
   for (const axis of ["x", "y"]) {

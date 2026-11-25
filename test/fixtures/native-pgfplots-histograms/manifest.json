@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"hist-manual-intervals","title":"Manual: three half-open bins and interval labels","source":"hist-manual-intervals.tex"},
+    {"id":"hist-manual-const","title":"Manual: constant histogram steps and repeated last value","source":"../examples/pgfplots/hist-manual-const.tex"},
+    {"id":"hist-manual-cumulative-x","title":"Manual: cumulative histogram of 8000 original x values","source":"../examples/pgfplots/hist-manual-cumulative-x.tex","resources":[{"name":"plotdata/pgfplots.randn.dat","source":"../examples/pgfplots/plotdata/pgfplots.randn.dat"}]},
+    {"id":"hist-manual-sharp","title":"Manual: sharp plot with intervals disabled","source":"hist-manual-sharp.tex"},
+    {"id":"hist-four-bin-modes","title":"Four bins: counts, density and two cumulative series","source":"hist-four-bin-modes.tex"}
+  ]
+}

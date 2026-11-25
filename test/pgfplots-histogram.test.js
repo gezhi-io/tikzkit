@@ -41,7 +41,7 @@ test("pgfplots histogram handler bins table samples and installs interval defaul
   `);
   const prepared = preparePgfplotsHistogram(
     {
-      "/tikz/ybar interval": true,
+      "ybar interval": true,
       xticklabel: String.raw`\pgfmathprintnumber\tick--\pgfmathprintnumber\nexttick`
     },
     [plot]
@@ -52,7 +52,7 @@ test("pgfplots histogram handler bins table samples and installs interval defaul
   assert.equal(prepared.axisOptions["ybar interval"], true);
   assert.equal(prepared.axisOptions.xtick, "data");
   assert.equal(prepared.axisOptions.xmajorgrids, true);
-  assert.equal(prepared.axisOptions["pgfplots x interval tick labels"], true);
+  assert.equal(prepared.axisOptions["x tick label as interval"], true);
   assert.deepEqual(histogram.histogram.edges, [1, 4, 7, 10]);
   assert.deepEqual(histogram.histogram.counts, [3, 2, 7]);
   assert.deepEqual(histogram.points.map(({ x, y }) => ({ x, y })), [
@@ -61,6 +61,19 @@ test("pgfplots histogram handler bins table samples and installs interval defaul
     { x: 7, y: 7 },
     { x: 10, y: 7 }
   ]);
+});
+
+test("the low-level TikZ interval painter does not install PGFPlots' grids or data ticks", () => {
+  const [plot] = parseAddplots(String.raw`\addplot+[hist={bins=2}] coordinates {(0,1) (0,6)};`);
+  const low = preparePgfplotsHistogram({ "/tikz/ybar interval": true }, [plot]);
+  assert.equal(isAxisBarPlot(low.axisOptions, {}, "y"), true);
+  assert.equal(low.axisOptions.xtick, undefined);
+  assert.equal(low.axisOptions.xmajorgrids, undefined);
+  assert.equal(low.axisOptions["x tick label as interval"], undefined);
+  const high = preparePgfplotsHistogram({ "ybar interval": true, xtick: "", "x tick label as interval": false }, [plot]);
+  assert.equal(high.axisOptions.xtick, "");
+  assert.equal(high.axisOptions["x tick label as interval"], false);
+  assert.equal(high.axisOptions["xtick align"], "outside");
 });
 
 test("pgfplots interval bars use adjacent coordinates and ignore the terminal value", () => {
@@ -136,7 +149,8 @@ test("pgfplots histogram interval tick labels span adjacent bin edges", () => {
     {
       xtick: "data",
       ytick: "none",
-      "pgfplots x interval tick labels": true
+      "x tick label as interval": true,
+      xticklabel: String.raw`\pgfmathprintnumber\tick--\pgfmathprintnumber\nexttick`
     },
     [plot],
     { xMin: 0, xMax: 11, yMin: 0, yMax: 1 },

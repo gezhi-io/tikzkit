@@ -7,6 +7,14 @@ import { tikzToSvg } from "../src/index.js";
 
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 0.015, `${actual} != ${expected} pt`);
 
+test("MacTeX hboxes: a grouped separator in a printed number has no punctuation space", () => {
+  // \pgfmathprintnumber{8000} on MacTeX: \wd\hbox = 22.77785pt.
+  for (const [tex, width] of [["8{,}000", 22.77785], ["8,000", 24.44447],
+    ["x{=}y", 18.75467], ["x=y", 24.31009]]) {
+    close(layoutNativeMath(tex).width, width);
+  }
+});
+
 test("MacTeX hboxes: Greek subscript, compound fraction, and combined scripts", () => {
   for (const [tex, width, height, depth] of [
     [String.raw`\Theta_B`, 14.6608, 6.83331, 1.49998],

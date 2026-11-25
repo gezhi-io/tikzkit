@@ -1,4 +1,4 @@
-import { isPgfplotsIntervalPlot } from "./histogram.js";
+import { isPgfplotsIntervalPlot } from "./intervalPlots.js";
 import { pgfplotsCompatAtLeast } from "./compat.js";
 
 const COORDINATE_EPSILON = 1e-9;

@@ -5,7 +5,7 @@ import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { formatAxisPoint, formatAxisTickLabel, joinOptions, roundAxis } from "./format.js";
 import { axisHasExplicitDescriptionPlacement, axisTickLabelNormalExtent, isMiddleAxis } from "./geometry.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
-import { axisTickLabelStyleOptions, pgfplotsAxisHidden, pgfplotsUsesNative2DText } from "./axisOptions.js";
+import { axisTickLabelStyleOptions, pgfplotsAxisHidden, pgfplotsOptionEnabled, pgfplotsUsesNative2DText } from "./axisOptions.js";
 export { axisTickLabelStyleOptions };
 import { axisZeroValue, isLogAxis } from "./ranges.js";
 import { axisLogBase, axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
@@ -97,28 +97,10 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   const yMinorTicks = yTicksDisabled || minorTicksDisabled
     ? []
     : axisMinorTickValues(axisOptions, "y", yTicks, finalRanges.yMin, finalRanges.yMax, addplots, !datavis && !axisOptions["y minor tick visualized"]);
-  const xLabels = axisOptions["pgfplots symbolic x labels"]
-    ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic x labels"], xTicks)
-    : axisOptions["pgfplots x interval tick labels"]
-      ? intervalAxisTickLabels(xTicks, axisTickNumberFormat(axisOptions, "x"))
-      : axisRenderedTickLabels(
-        axisOptions,
-        "x",
-        axisOptions.xticklabels,
-        xTicks,
-        axisTickNumberFormat(axisOptions, "x"),
-        axisOptions.xticklabel
-      );
-  const yLabels = axisOptions["pgfplots symbolic y labels"]
-    ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic y labels"], yTicks)
-    : axisRenderedTickLabels(
-      axisOptions,
-      "y",
-      axisOptions.yticklabels,
-      yTicks,
-      axisTickNumberFormat(axisOptions, "y"),
-      axisOptions.yticklabel
-    );
+  const xLabels = axisRenderedTickLabels(axisOptions, "x", axisOptions.xticklabels, xTicks,
+    axisTickNumberFormat(axisOptions, "x"), axisOptions.xticklabel);
+  const yLabels = axisRenderedTickLabels(axisOptions, "y", axisOptions.yticklabels, yTicks,
+    axisTickNumberFormat(axisOptions, "y"), axisOptions.yticklabel);
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
   const xTickLabelDistance = explicitNonnegativeDimension(axisOptions["x axis tick label distance"]);
   const yTickLabelDistance = explicitNonnegativeDimension(axisOptions["y axis tick label distance"]);
@@ -195,6 +177,13 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
       : boxRanges[b + ((side === "upper") !== reverse ? "Max" : "Min")];
     return geometry.mapPoint({ [axis]: value, [b]: edge });
   }
+  function frameLabelBase(axis, ticks, index) {
+    const side = sides[axis].labelSide;
+    const left = frameBase(axis, ticks[index], side);
+    if (!intervalTickLabelsEnabled(axisOptions, axis) || index + 1 === ticks.length) return left;
+    const right = frameBase(axis, ticks[index + 1], side);
+    return { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
+  }
   function drawTick(axis, value, visual, length, style, minor, hidePrimary = false) {
     const b = axis === "x" ? "y" : "x";
     const align = axis === "x" ? xTickAlignment : yTickAlignment;
@@ -229,11 +218,8 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     const visual = datavisTickVisual(axisOptions, "x", index, xMajorTickVisual, tickLength, xTickStyle);
     if (visual?.scopeStyle) commands.push(`{[${visual.scopeStyle}]`);
     const { from, to } = drawTick("x", x, visual, tickLength, xTickStyle, false);
-    const intervalLabelX = axisOptions["pgfplots x interval tick labels"] && Number.isFinite(xTicks[index + 1])
-      ? (x + xTicks[index + 1]) / 2
-      : x;
-    const labelBase = !datavis && !visual ? frameBase("x", intervalLabelX, sides.x.labelSide) : geometry.mapPoint({
-      x: intervalLabelX,
+    const labelBase = !datavis && !visual ? frameLabelBase("x", xTicks, index) : geometry.mapPoint({
+      x,
       y: xTickLabelsOnUpperSide && isBoxAxis(axisOptions)
         ? boxRanges.yMax
         : axisTickBaseValue(xMajorTickVisual, "y", yAxis, ranges)
@@ -314,9 +300,9 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
         ]);
         if (yLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${tickPoint(spec.point)} {${yLabels[index]}};`);
       }
-    } else if (!visual && shouldShowYLabel) {
+    } else if (!visual && shouldShowYLabel && yLabels[index] !== "") {
       const rightSide = datavis ? yLineMode === "right" || (isBoxAxis(axisOptions) && yTickLabelsOnUpperSide) : yTickLabelsOnUpperSide;
-      const labelBase = !datavis ? frameBase("y", y, sides.y.labelSide) : rightSide && isBoxAxis(axisOptions)
+      const labelBase = !datavis ? frameLabelBase("y", yTicks, index) : rightSide && isBoxAxis(axisOptions)
         ? geometry.mapPoint({ x: boxRanges.xMax, y })
         : base;
       const labelStyle = joinOptions([
@@ -379,7 +365,6 @@ export function extraAxisTickPassOptions(axisOptions = {}, axis = "x", addplots 
   pass["scaled x ticks"] = false;
   pass["scaled y ticks"] = false;
   delete pass[`pgfplots symbolic ${axis} labels`];
-  delete pass[`pgfplots ${axis} interval tick labels`];
   delete pass[`${axis}ticklabels`];
   const explicitLabels = axisOptions[`extra ${axis} tick labels`];
   if (explicitLabels !== undefined) pass[`${axis}ticklabels`] = explicitLabels;
@@ -1170,30 +1155,37 @@ function trimAutoTerminalTicks(values, min, max) {
   return ticks;
 }
 
-function axisTickLabels(raw, ticks, formatOptions = {}, template = "") {
+function axisTickLabels(raw, ticks, formatOptions = {}, template = "", interval = false) {
   if (isEmptyTickLabelList(raw)) return ticks.map(() => "");
   const labels = splitBracedList(raw);
   if (labels.length) return ticks.map((_, index) => labels[index] ?? "");
   if (hasTickLabelTemplate(template)) {
-    return ticks.map((tick) => renderTickLabelTemplate(template, tick, formatOptions));
+    return ticks.map((tick, i) => renderTickLabelTemplate(template, tick, formatOptions, interval ? ticks[i + 1] : undefined));
   }
   return ticks.map((tick) => formatAxisTickLabel(tick, formatOptions));
 }
 
+function intervalTickLabelsEnabled(options, axis) {
+  return pgfplotsOptionEnabled(options[axis + " tick label as interval"]);
+}
+
 export function axisRenderedTickLabels(axisOptions, axis, raw, ticks, formatOptions = {}, template = "") {
-  if (
-    isLogAxis(axisOptions, axis) &&
-    !isEmptyTickLabelList(raw) &&
-    splitBracedList(raw).length === 0 &&
-    !hasTickLabelTemplate(template)
-  ) {
-    return ticks.map((tick) => axisLogTickLabel(axisOptions, axis, tick));
+  const interval = intervalTickLabelsEnabled(axisOptions, axis);
+  const symbolic = axisOptions["pgfplots symbolic " + axis + " labels"];
+  const log = isLogAxis(axisOptions, axis);
+  let labels;
+  if (symbolic) labels = symbolicAxisTickLabels(symbolic, ticks);
+  else if (log && !isEmptyTickLabelList(raw) && !splitBracedList(raw).length && !hasTickLabelTemplate(template)) {
+    labels = ticks.map(tick => axisLogTickLabel(axisOptions, axis, tick));
+  } else {
+    // PGF exposes the display logarithm as \tick, not the original data value.
+    const values = log && hasTickLabelTemplate(template)
+      ? ticks.map(tick => Math.log(tick) / Math.log(axisLogBase(axisOptions, axis)))
+      : scaledAxisTicks(axisOptions, axis, ticks);
+    labels = axisTickLabels(raw, values, formatOptions, template, interval);
   }
-  // PGF exposes the display logarithm as \tick, not the original data value.
-  const values = isLogAxis(axisOptions, axis) && hasTickLabelTemplate(template)
-    ? ticks.map((tick) => Math.log(tick) / Math.log(axisLogBase(axisOptions, axis)))
-    : scaledAxisTicks(axisOptions, axis, ticks);
-  return axisTickLabels(raw, values, formatOptions, template);
+  if (interval && labels.length) labels[labels.length - 1] = "";
+  return labels;
 }
 
 function hasTickLabelTemplate(template) {
@@ -1201,27 +1193,20 @@ function hasTickLabelTemplate(template) {
   return Boolean(text) && text !== "true" && text !== "false";
 }
 
-export function renderTickLabelTemplate(template, tick, formatOptions = {}) {
+export function renderTickLabelTemplate(template, tick, formatOptions = {}, nextTick) {
   const text = stripBalancedOuterBracesForList(String(template).trim());
+  const print = (match, name, local) => {
+    const value = name === "tick" ? tick : nextTick;
+    if (value === undefined) return match;
+    return formatAxisTickLabel(value, local === undefined ? formatOptions
+      : pgfNumberFormatOptions(parseOptions(local), formatOptions));
+  };
   return text
     .replace(
-      /\\pgfmathprintnumber\s*(?:\[([^\]]*)\])?\s*(?:\{\s*\\tick\s*\}|\\tick\b)/g,
-      (_, localOptions) => formatAxisTickLabel(
-        tick,
-        localOptions === undefined
-          ? formatOptions
-          : pgfNumberFormatOptions(parseOptions(localOptions), formatOptions)
-      )
+      /\\pgfmathprintnumber\s*(?:\[([^\]]*)\])?\s*(?:\{\s*\\(tick|nexttick)\s*\}|\\(tick|nexttick)\b)/g,
+      (match, local, braced, bare) => print(match, braced || bare, local)
     )
-    .replace(/\\tick\b/g, formatAxisTickLabel(tick, formatOptions));
-}
-
-function intervalAxisTickLabels(ticks, formatOptions = {}) {
-  return ticks.map((tick, index) => {
-    const next = ticks[index + 1];
-    if (!Number.isFinite(next)) return "";
-    return `${formatAxisTickLabel(tick, formatOptions)}--${formatAxisTickLabel(next, formatOptions)}`;
-  });
+    .replace(/\\(tick|nexttick)\b/g, (match, name) => print(match, name));
 }
 
 export function axisTickNumberFormat(axisOptions = {}, axis) {

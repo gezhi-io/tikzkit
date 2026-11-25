@@ -31,7 +31,11 @@ export function evaluateAxisExpression(expression, x, axisOptions = {}, variable
 
 export function evaluateAxisExpressionAtSample(expression, x, axisOptions = {}, context = {}) {
   context = { diagnostics: axisDiagnostics, ...context };
-  const result = evaluateAxisExpressionResult(expression, x, axisOptions, context.variables);
+  // A custom plotting variable follows the sample, including an endpoint
+  // recovery probe. It must not leak into the next plot's expression scope.
+  const variablesAt = value => context.sampleVariable
+    ? { ...context.variables, [context.sampleVariable]: value } : context.variables;
+  const result = evaluateAxisExpressionResult(expression, x, axisOptions, variablesAt(x));
   const value = result.value;
   if (Number.isFinite(value)) return value;
 
@@ -43,7 +47,8 @@ export function evaluateAxisExpressionAtSample(expression, x, axisOptions = {}, 
   const direction = index === 0 ? Math.sign(span) || 1 : -(Math.sign(span) || 1);
   const step = Math.abs(span) / Math.max(1, samples - 1);
   const epsilon = Math.min(Math.max(Math.abs(span), 1) * 1e-7, step * 1e-4);
-  const probe = evaluateAxisExpressionResult(expression, x + direction * epsilon, axisOptions, context.variables).value;
+  const probeX = x + direction * epsilon;
+  const probe = evaluateAxisExpressionResult(expression, probeX, axisOptions, variablesAt(probeX)).value;
   if (!Number.isFinite(probe) || Math.abs(probe) > 1e4) return mathResultValue(result, context);
   return Math.abs(probe) < 1e-4 ? 0 : probe;
 }

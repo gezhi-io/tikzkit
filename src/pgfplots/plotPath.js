@@ -11,26 +11,34 @@ export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}, o
   if (plotOptions["axis plot gap"]) {
     return gappedAxisPlotPointChain(points, plotOptions, { cycle });
   }
-  if (cycle && !isConstPlot(axisOptions, plotOptions) && isSmoothAxisPlot(plotOptions, axisOptions) && points.length >= 3) {
-    return smoothAxisCyclePointChain(points, plotOptions);
+  const handler = lineHandler(plotOptions) ?? lineHandler(axisOptions);
+  if (handler === "smooth" && points.length >= 3) {
+    return cycle ? smoothAxisCyclePointChain(points, plotOptions) : smoothAxisPlotPointChain(points, plotOptions);
   }
-  if (!isConstPlot(axisOptions, plotOptions) && isSmoothAxisPlot(plotOptions, axisOptions) && points.length >= 3) {
-    return smoothAxisPlotPointChain(points, plotOptions);
-  }
-  if (!isConstPlot(axisOptions, plotOptions)) {
+  if (!handler || handler === "sharp plot" || handler === "smooth") {
     const chain = points.map(formatAxisPoint).join(" -- ");
     return cycle ? `${chain} -- cycle` : chain;
   }
-  const stepped = [points[0]];
+  // Stock PGF const/jump handlers differ only in where the step turns
+  // and whether the change of height is a line or a move.
+  const jump = handler.startsWith("jump");
+  const mid = handler.endsWith("mid");
+  const right = handler.endsWith("right") !== Boolean(options.mirrorConstPlot);
+  const stepped = [formatAxisPoint(points[0])];
+  const visit = (point, move = false) => stepped.push((move ? " " : " -- ") + formatAxisPoint(point));
   for (let index = 1; index < points.length; index += 1) {
     const previous = points[index - 1];
     const current = points[index];
-    const corner = options.mirrorConstPlot
-      ? { x: previous.x, y: current.y }
-      : { x: current.x, y: previous.y };
-    stepped.push(corner, current);
+    if (mid) {
+      const x = (previous.x + current.x) / 2;
+      visit({ x, y: previous.y });
+      visit({ x, y: current.y }, jump);
+    } else {
+      visit(right ? { x: previous.x, y: current.y } : { x: current.x, y: previous.y }, jump && right);
+    }
+    visit(current, jump && !mid && !right);
   }
-  const chain = stepped.map(formatAxisPoint).join(" -- ");
+  const chain = stepped.join("");
   return cycle ? `${chain} -- cycle` : chain;
 }
 
@@ -68,14 +76,24 @@ export function clampAxisBaseline(value, min, max) {
 }
 
 export function isSmoothAxisPlot(plotOptions = {}, axisOptions = {}) {
-  const value = plotOptions.smooth ?? axisOptions.smooth;
-  if (value === undefined || value === null || value === false) return false;
-  const text = String(value).trim().toLowerCase();
-  return text !== "false" && text !== "0";
+  return (lineHandler(plotOptions) ?? lineHandler(axisOptions)) === "smooth";
 }
 
 export function isConstPlot(axisOptions = {}, plotOptions = {}) {
-  return Boolean(axisOptions["const plot"] || plotOptions["const plot"]);
+  return (lineHandler(plotOptions) ?? lineHandler(axisOptions) ?? "").startsWith("const plot");
+}
+
+function lineHandler(options) {
+  const selected = options["pgfplots histogram handler"];
+  if (selected) return selected;
+  let handler;
+  for (const [raw, value] of Object.entries(options)) {
+    const key = raw.replace(/^\/tikz\//, "");
+    if (/^(?:sharp plot|smooth|const plot(?: mark (?:left|right|mid))?|jump mark (?:left|right|mid))$/.test(key)) {
+      handler = value == null || /^(?:false|0)$/i.test(String(value).trim()) ? "sharp plot" : key;
+    }
+  }
+  return handler;
 }
 
 export function gappedAxisPlotPointChain(points, plotOptions = {}, options = {}) {

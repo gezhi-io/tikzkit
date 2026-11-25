@@ -1,0 +1,21 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{statistics}
+\pgfplotsset{width=7cm,compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}
+    \addplot+ [
+        hist={
+            bins=3,
+            handler/.style={sharp plot},
+            intervals=false,
+        },
+    ] table [row sep=\\,y index=0] {
+        data\\
+        1\\ 2\\ 1\\ 5\\ 4\\ 10\\
+        7\\ 10\\ 9\\ 8\\ 9\\ 9\\
+    };
+\end{axis}
+\end{tikzpicture}
+\end{document}
