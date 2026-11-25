@@ -6648,8 +6648,11 @@ test("scales TikZ grid step with picture coordinate scale", () => {
   const horizontals = gridLines.filter((item) => item.commands[0].y === item.commands[1].y);
 
   assert.deepEqual(diagnostics, []);
-  assert.deepEqual(verticals.map((line) => line.commands[0].x), [-3, 0, 3]);
-  assert.deepEqual(horizontals.map((line) => line.commands[0].y), [3]);
+  // pdfTeX reports 1cm as 1864679sp before applying scale=3.
+  const toSp = cm => Math.round(cm * 65536 * 7227 / 254);
+  const scaledStep = 3 * 1864679;
+  assert.deepEqual(verticals.map(line => toSp(line.commands[0].x)), [-scaledStep, 0, scaledStep]);
+  assert.deepEqual(horizontals.map(line => toSp(line.commands[0].y)), [scaledStep]);
 });
 
 test("supports per-plot options and polar basis vectors for calibration cases", () => {

@@ -111,6 +111,7 @@ import {
   TREE_PARENT_ALIAS
 } from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
+import { gridCartesianPair, gridLiteralPoint, gridSegments, gridStep } from "../tikz/pathOperations/grid.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
   isMatrixNodeOptions as isMatrixLibraryNodeOptions,
@@ -1766,6 +1767,8 @@ function isCoordinateNodePlacementPath(segments = []) {
 
 function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {}) {
   const commands = [];
+  const gridCorners = [];
+  const gridLiterals = segments.some(s => s.value === "grid") ? new WeakMap() : null;
   const compoundQuickPath = segments.length > 2 && tikzBoolean(pathOptions["tikzkit quick path"]);
   const shapes = [];
   const nodes = [];
@@ -1835,9 +1838,11 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const turnedPoint = !segment.relative && currentBase && lastSegment
         ? resolveTurnCoordinate(segment.raw, currentBase, lastSegment, env, diagnostics)
         : null;
-      const point = turnedPoint || (segment.relative
+      const subpathStart = !segment.relative && segment.raw === "current subpath start" ? start : null;
+      const point = subpathStart || turnedPoint || (segment.relative
         ? resolveRelativeCoordinate(segment.raw, relativeOrigin, env, diagnostics)
         : resolveCoordinate(segment.raw, env, diagnostics));
+      if (gridLiterals && !segment.relative && !subpathStart) gridLiterals.set(point, segment.raw);
       if (pendingPlotMark) {
         addPlotMarkItems(point, pendingPlotMark, pathStyle, effectivePathOptions, env, shapes, nodes);
         pendingPlotMark = null;
@@ -1846,10 +1851,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         ? null
         : resolveLocalCoordinate(segment.raw, env, diagnostics);
       const nodeRef = segment.relative ? null : defaultPathNodeReference(segment.raw, env);
-      // Claude: 形如 \draw rectangle (8,8) / \draw grid (4,4)（没有显式起点）时，TikZ 以局部原点
-      // (0,0) 作为第一个角。原代码因 current 为空直接走下面的 moveTo 分支、把矩形/网格丢掉了
-      // （只剩一个 moveTo）。这里在遇到这类挂起操作且尚无当前点时，先把经过当前变换的局部原点
-      // 设为起点，让后面的 rectangle/grid 分支正常生成图形（变换会把它剪成平行四边形，见 case 047）。
+      // Without an explicit start, rectangles and grids begin at the transformed origin.
       if (!current && (pendingValue === "rectangle" || pendingValue === "grid")) {
         const origin = applyCoordinateTransform({ x: 0, y: 0 }, env);
         commands.push(moveToCommand(origin));
@@ -1870,14 +1872,36 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         startNodeRef = nodeRef;
         endNodeRef = nodeRef;
       } else if (pendingValue === "grid") {
-        const localGrid = Boolean(currentLocal && localPoint);
-        shapes.push(...buildGrid(
-          localGrid ? currentLocal : current,
-          localGrid ? localPoint : point,
-          effectivePathOptions,
-          env,
-          localGrid
-        ));
+        const gridOptions = normalizeOptions("path", resolveDynamicOptions(pendingOptions, env), env).options;
+        const inverse = inverseAffineTransform(coordinateTransformForEnvironment(env));
+        const local = (p, literal) => inverse ? applyTransform(p, inverse) : literal;
+        const corner = (p, literal) => gridLiteralPoint(gridLiterals.get(p), env.basis) || local(p, literal);
+        const step = gridStep([effectivePathOptions, gridOptions],
+          (x, y) => gridCartesianPair(x, y, env.basis) || resolveImplicitTwoPartCoordinate(x, y, env),
+          raw => gridLiteralPoint(raw, env.basis) || (shouldResolveAsLocalRectangleCorner(raw)
+            ? resolveLocalCoordinate(raw, env, diagnostics) : local(resolveCoordinate(raw, env, diagnostics), null)));
+        const lines = gridSegments(corner(current, currentLocal), corner(point, localPoint), step,
+          p => applyCoordinateTransform(p, env),
+          limit => diagnostics.push({ severity: "warning", code: "grid-line-limit", message: "Grid exceeds " + limit + " lines." }));
+        const subtype = semanticSubtype(effectivePathOptions) || "grid-line";
+        // Independent opaque lines retain the public grid-line IR. A shared
+        // stroke is required when crossings blend or arrows apply to the path.
+        const compound = pathStyle.markerStart || pathStyle.markerEnd || Number(pathStyle.opacity ?? 1) !== 1 ||
+          Number(pathStyle.strokeOpacity ?? 1) !== 1 || pathStyle.fill && pathStyle.fill !== "none" ||
+          effectivePathOptions["name path"] || effectivePathOptions["name path global"] ||
+          effectivePathOptions.clip || effectivePathOptions.decorate;
+        for (const [a, b] of lines) {
+          const segment = [moveToCommand(a), lineToCommand(b)];
+          if (compound) commands.push(...segment);
+          else shapes.push({ type: "path", subtype, commands: segment });
+        }
+        // pgfpathgrid ends with a move to the supplied corner, not to the
+        // last lattice intersection. A following --, + or ++ starts there.
+        gridCorners.push(moveToCommand(current), moveToCommand(point));
+        commands.push(moveToCommand(point));
+        lastSegment = null;
+        start = point;
+        startNodeRef = nodeRef;
         current = point;
         currentLocal = localPoint || point;
         currentBase = point;
@@ -2496,10 +2520,12 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
 
   flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env, pathStyle, effectivePathOptions);
   const roundedCommands = applyRoundedCornersToPath(commands, effectivePathOptions, env);
+  // The requested corners contribute to the paper even when off the lattice.
+  const originalBounds = roundedCommands === commands ? null : commands;
   return {
     commands: applyPathDecoration(roundedCommands, effectivePathOptions, env),
     decorationInputCommands: roundedCommands,
-    boundsCommands: roundedCommands === commands ? null : commands,
+    boundsCommands: gridCorners.length ? gridCorners.concat(originalBounds || []) : originalBounds,
     shapes,
     nodes,
     styleHints,
@@ -15509,70 +15535,6 @@ function maxTextMetricUnits(lines) {
 
 function textMetricUnits(line) {
   return mathTextMetricUnits(line);
-}
-
-function buildGrid(from, to, pathOptions, env = {}, localCoordinates = false) {
-  const scale = localCoordinates ? 1 : gridStepScale(env);
-  const fallbackStep = parseDimension(pathOptions.step || 1) * scale;
-  const xstep = parseDimension(pathOptions.xstep || pathOptions["x step"] || pathOptions.step || 1) * scale;
-  const ystep = parseDimension(pathOptions.ystep || pathOptions["y step"] || pathOptions.step || 1) * scale;
-  if (!Number.isFinite(fallbackStep) || fallbackStep <= 0 || !Number.isFinite(xstep) || xstep <= 0 || !Number.isFinite(ystep) || ystep <= 0) return [];
-  const lines = [];
-  const subtype = semanticSubtype(pathOptions) || "grid-line";
-  const minX = Math.min(from.x, to.x);
-  const maxX = Math.max(from.x, to.x);
-  const minY = Math.min(from.y, to.y);
-  const maxY = Math.max(from.y, to.y);
-  const xTolerance = Math.max(1e-9, xstep * 0.05);
-  const yTolerance = Math.max(1e-9, ystep * 0.05);
-  const gridPoint = (point) => localCoordinates ? applyCoordinateTransform(point, env) : roundPoint(point);
-  const addHorizontal = (y) => {
-    const start = gridPoint({ x: minX, y: roundNumber(y) });
-    const end = gridPoint({ x: maxX, y: roundNumber(y) });
-    lines.push({
-      type: "path",
-      subtype,
-      commands: [
-        { type: "moveTo", x: start.x, y: start.y },
-        { type: "lineTo", x: end.x, y: end.y }
-      ]
-    });
-  };
-  for (let x = Math.ceil((minX - xTolerance) / xstep) * xstep; x <= maxX + xTolerance; x += xstep) {
-    const start = gridPoint({ x: roundNumber(x), y: minY });
-    const end = gridPoint({ x: roundNumber(x), y: maxY });
-    lines.push({
-      type: "path",
-      subtype,
-      commands: [
-        { type: "moveTo", x: start.x, y: start.y },
-        { type: "lineTo", x: end.x, y: end.y }
-      ]
-    });
-  }
-  let horizontalCount = 0;
-  for (let y = Math.ceil((minY - yTolerance) / ystep) * ystep; y <= maxY + yTolerance; y += ystep) {
-    addHorizontal(y);
-    horizontalCount += 1;
-  }
-  const transformedCap = localCoordinates ? null : transformedGridUpperCap(minY, maxY, ystep, yTolerance, env);
-  if (horizontalCount === 0 && transformedCap !== null) {
-    addHorizontal(transformedCap);
-  }
-  return lines;
-}
-
-function gridStepScale(env = {}) {
-  const scale = normalizeTransform(env.transform).scale;
-  return Number.isFinite(scale) && scale > 0 ? scale : 1;
-}
-
-function transformedGridUpperCap(minY, maxY, step, tolerance, env = {}) {
-  if (!usesCustomBasis(env.basis) || maxY <= 0 || minY < 0) return null;
-  const upper = Math.ceil((maxY - tolerance) / step) * step;
-  if (upper <= maxY + tolerance) return null;
-  if (upper > maxY + step + tolerance) return null;
-  return roundNumber(upper);
 }
 
 function buildArc(current, options, env) {

@@ -147,3 +147,8 @@ texPackage.features.push("Unpainted rectangular nodes retain their paper bounds 
 texPackage.implementedBy += " + src/tikz/emptyRectangle.js:emptyRectangleSize + src/renderers/svg/bounds.js:computeSvgBounds";
 texPackage.localSourceReviewedLatest += "; pgfmoduleshapes.code.tex:84-104,847-897,936-1011,1098-1102 (background, coordinate, dimensions and rectangular anchors); pgfcorepathconstruct.code.tex:125-141 and pgfcorepathusage.code.tex:112-130 (geometry vs pen bounds); tikz.code.tex:2691-2709,2816-2838 (named border vs explicit anchor)";
 texPackage.registryNoteSuffixLatest += " An ordinary empty rectangle contributes its unpainted background to the picture bounds, excluding outer sep; coordinates and overlays do not add a rectangle. Five controls check physical bounds and connections in the live browser and SVG export. Arbitrary shapes and transforms are not certified. Evidence: docs/qa/2026-11-25-empty-node-boundaries.md.";
+
+texPackage.features.push("Path grids with scoped steps, independent directions and physical lattice boundaries");
+texPackage.implementedBy += " + src/tikz/pathOperations/grid.js:gridStep/gridSegments";
+texPackage.localSourceReviewedLatest += "; tikz.code.tex:469-478,2799-2801,3294-3330 (step vectors, cycle and local grid keys); pgfcorepoints.code.tex:800-809 and pgfcorepathconstruct.code.tex:1127-1240 (scaled-point basis and lattice traversal)";
+texPackage.registryNoteSuffixLatest += " Core path grids now resolve numeric, dimensional and coordinate steps, independent directions, scaled-point edge inclusion, transformed corners, grid cycle and compound strokes. See docs/qa/2026-11-25-native-path-grids.md for the native sources, visual controls and limits.";

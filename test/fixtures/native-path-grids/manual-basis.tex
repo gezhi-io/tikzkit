@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+% PGF manual, The Grid Operation (pgfmanual-en-tikz-paths.tex:630-634).
+\begin{tikzpicture}[x=.5cm]
+  \draw[thick] (0,0) grid [step=1]     (3,2);
+  \draw[red]   (0,0) grid [step=.75cm] (3,2);
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,14 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "grid-manual-basis",
+    "grid-manual-polar",
+    "grid-one-direction",
+    "grid-local-steps",
+    "grid-affine",
+    "grid-limit",
+    "grid-demo",
+    "grid-stroke",
+    "grid-cycle"
+  ]
+}

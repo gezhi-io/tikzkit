@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[step=1cm]
+  \draw[blue] (0,0) grid[step={(.5cm,.25cm)}] (1,1)
+    (1.3,0) grid (3,1) -- ++(.5,.3);
+  \draw[red] (0,-1.5) grid[xstep=8mm,step=4mm,ystep=.2cm] (1.2,-.3);
+\end{tikzpicture}
+\end{document}

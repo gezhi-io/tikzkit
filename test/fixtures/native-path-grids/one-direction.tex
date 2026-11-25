@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[red]   (0,0) grid [xstep=0,ystep=4mm] (2,1);
+  \draw[blue]  (2.4,0) grid [xstep=3mm,ystep=-1] (4,1);
+  \draw[teal]  (0,-1) grid [xstep=.009pt,ystep=5mm] (1.5,-.2);
+  \draw[black] (0,-1.2) -- (4,-1.2);
+\end{tikzpicture}
+\end{document}

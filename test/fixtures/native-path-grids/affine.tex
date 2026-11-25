@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \begin{scope}[x={(1cm,.25cm)},y={(.5cm,1cm)},shift={(1cm,.4cm)},rotate=24]
+    \coordinate (corner) at (2,1);
+    \draw[teal] (0,0) grid [xstep=.5,ystep=.75] (corner);
+    \draw[red] (.1,-1.4) grid [step={(4mm,2mm)}] ++(1.6,.75);
+  \end{scope}
+\end{tikzpicture}
+\end{document}

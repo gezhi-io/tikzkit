@@ -1,0 +1,49 @@
+{
+  "cases": [
+    {
+      "id": "grid-manual-basis",
+      "source": "manual-basis.tex",
+      "title": "Manual: a numeric step versus a physical step"
+    },
+    {
+      "id": "grid-manual-polar",
+      "source": "manual-polar.tex",
+      "title": "Manual: a coordinate as the grid step"
+    },
+    {
+      "id": "grid-one-direction",
+      "source": "one-direction.tex",
+      "title": "Independent grid directions and minimum physical step"
+    },
+    {
+      "id": "grid-local-steps",
+      "source": "local-steps.tex",
+      "title": "Scoped step pairs and continuing from the opposite corner"
+    },
+    {
+      "id": "grid-affine",
+      "source": "affine.tex",
+      "title": "A skew basis, rotation, shift, named and relative grid corners"
+    },
+    {
+      "id": "grid-limit",
+      "source": "limit.tex",
+      "title": "Native lattice edge rules near and outside a grid line"
+    },
+    {
+      "id": "grid-demo",
+      "source": "../examples/latex-examples/rectangle-1.tex",
+      "title": "Cartesian polygon and half-centimetre grid"
+    },
+    {
+      "id": "grid-stroke",
+      "source": "stroke.tex",
+      "title": "Single-stroke transparency and the arrow after a grid"
+    },
+    {
+      "id": "grid-cycle",
+      "source": "cycle.tex",
+      "title": "The previous move-to as the grid's opposite corner"
+    }
+  ]
+}

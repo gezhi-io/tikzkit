@@ -24,6 +24,13 @@ export const tikzCommand = {
       notes: "Cubic Bezier segments are converted to drawing IR curve commands."
     },
     {
+      name: "grid",
+      category: "path operation",
+      status: "partial",
+      implementedBy: "src/tikz/pathOperations/grid.js + src/frontend/parser.js + src/engine/evaluate.js:buildPath",
+      notes: "step, xstep, ystep, coordinate-valued steps, grid-local step overrides, affine scopes, grid cycle and the final move to the requested corner. General grid-local transforms are not covered."
+    },
+    {
       name: "parabola / parabola bend",
       category: "path operation",
       status: "implemented",

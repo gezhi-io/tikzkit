@@ -1616,8 +1616,14 @@ export function parsePathSegments(pathText) {
       }
     }
     if (startsKeyword(pathText, index, "grid")) {
-      segments.push({ kind: "operator", value: "grid" });
-      index += "grid".length;
+      const local = parseOptionalOptions(pathText, index + "grid".length);
+      segments.push({ kind: "operator", value: "grid", ...(local.raw ? { options: local.options } : {}) });
+      index = skipWhitespace(pathText, local.end);
+      if (startsKeyword(pathText, index, "cycle")) {
+        // tikz@cycle@expander supplies (current subpath start)--cycle.
+        segments.push({ kind: "coordinate", raw: "current subpath start" }, { kind: "close" });
+        index += "cycle".length;
+      }
       continue;
     }
     if (startsKeyword(pathText, index, "edge")) {
