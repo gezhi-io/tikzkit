@@ -1,0 +1,15 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[line width=1pt,>=latex]
+  \begin{scope}[tips=never]
+    \draw[blue,<->,shorten <=5pt,shorten >=7pt] (0,0) -- (2,0);
+    \draw[red,<->,/pgf/tips=true] (0,-.35) -- (2,-.35);
+  \end{scope}
+  \draw[teal,<->,tips=false] (0,-.7) -- (2,-.7);
+  \draw[purple,<->] (0,-1.05) -- (2,-1.05);
+  \begin{scope}[gray,<->,shorten >=5pt]
+    \draw[clip] (0,-1.4) -- (2,-1.4);
+  \end{scope}
+\end{tikzpicture}
+\end{document}

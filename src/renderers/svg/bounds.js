@@ -10,7 +10,7 @@ import { estimateRichTextRenderBounds } from "./richTextNode.js";
 import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
-import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTip, resolveInlineArrowTipSequence, shortenPathTerminals } from "./paths.js";
+import { layoutArrowedPath, resolveInlineArrowTip } from "./paths.js";
 import {
   circularSectorGeometry,
   cylinderGeometry,
@@ -30,7 +30,7 @@ import { tubeGeometry } from "../../extensions/circuitikz/tubes.js";
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  let hasMeasuredEmptyBox = false;
+  let allowZeroExtent = false;
   const includeGlobal = (x, y) => {
     bounds.minX = Math.min(bounds.minX, x);
     bounds.minY = Math.min(bounds.minY, y);
@@ -139,7 +139,7 @@ export function computeSvgBounds(items, options = {}) {
       if (isEmptyNormalizedTikzText(normalized)) {
         if (item.retainEmptyLayout) {
           includeTextNodeLayoutBounds(item, include);
-          if (includeClippedItemBounds(item, itemBounds, includeGlobal)) hasMeasuredEmptyBox = true;
+          if (includeClippedItemBounds(item, itemBounds, includeGlobal)) allowZeroExtent = true;
         }
         continue;
       }
@@ -187,14 +187,18 @@ export function computeSvgBounds(items, options = {}) {
     } else if (item.type === "marker") {
       includeStandaloneMarkerBounds(item, include, unit);
     }
-    includeClippedItemBounds(item, itemBounds, includeGlobal);
+    const included = includeClippedItemBounds(item, itemBounds, includeGlobal);
+    const arrowOnly = item.type === "path" && item.style?.stroke === "none" && (item.style.markerStart || item.style.markerEnd);
+    if (included && (arrowOnly || (item.type === "bbox" && item.retainZeroExtent === true))) {
+      allowZeroExtent = true;
+    }
   }
 
   if (!Number.isFinite(bounds.minX)) return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
-  // A PGF rectangle can have an explicitly zero minimum. In that case the
-  // page border alone determines the viewport, not the empty-scene fallback.
-  if (!hasMeasuredEmptyBox && bounds.minX === bounds.maxX) bounds.maxX += 1;
-  if (!hasMeasuredEmptyBox && bounds.minY === bounds.maxY) bounds.maxY += 1;
+  // A retained box or arrow-only path can have a true zero extent;
+  // the page border then determines that dimension of the viewport.
+  if (!allowZeroExtent && bounds.minX === bounds.maxX) bounds.maxX += 1;
+  if (!allowZeroExtent && bounds.minY === bounds.maxY) bounds.maxY += 1;
   return bounds;
 }
 
@@ -361,34 +365,10 @@ function intersectPathClipPolygonBounds(bounds, clipPolygon) {
 function includeInlineArrowBounds(item, include, unit) {
   const style = item.style || {};
   if (!style.markerStart && !style.markerEnd) return;
-  const originalTerminal = pathTerminalSegments(item.commands || []);
-  const explicitCommands = shortenPathTerminals(
-    item.commands || [],
-    originalTerminal,
-    (Number(style.shortenStart) || 0) / unit,
-    (Number(style.shortenEnd) || 0) / unit,
-    { start: resolveInlineArrowTipSequence(style.markerStart, style, "start").some(tip => tip.bending),
-      end: resolveInlineArrowTipSequence(style.markerEnd, style, "end").some(tip => tip.bending) }
-  );
-  const terminal = pathTerminalSegments(explicitCommands);
-  if (style.markerStart && terminal.first) {
-    const ux = -(terminal.first.startUx ?? terminal.first.ux);
-    const uy = -(terminal.first.startUy ?? terminal.first.uy);
-    const tips = resolveInlineArrowTipSequence(style.markerStart, style, "start");
-    for (const placed of placeResolvedInlineArrowTips(tips, terminal.first.start, -ux, -uy, unit)) {
-      if (!includeCurvedArrowTipBounds(placed, style, terminal.first, "start", include, unit)) {
-        includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
-      }
-    }
-  }
-  if (style.markerEnd && terminal.last) {
-    const ux = terminal.last.endUx ?? terminal.last.ux;
-    const uy = terminal.last.endUy ?? terminal.last.uy;
-    const tips = resolveInlineArrowTipSequence(style.markerEnd, style, "end");
-    for (const placed of placeResolvedInlineArrowTips(tips, terminal.last.end, -ux, -uy, unit)) {
-      if (!includeCurvedArrowTipBounds(placed, style, terminal.last, "end", include, unit)) {
-        includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
-      }
+  for (const placed of layoutArrowedPath(item, unit).placements) {
+    if (placed.tip.geometry?.includeBounds === false) continue;
+    if (!includeCurvedArrowTipBounds(placed, style, placed.curve, placed.side, include, unit)) {
+      includeResolvedArrowTipBounds(placed.tip, style, placed.point, placed.outward.x, placed.outward.y, include, unit, item.includeArrowNormalBounds);
     }
   }
 }
@@ -405,7 +385,6 @@ function includeCurvedArrowTipBounds(placed, style, terminal, side, include, uni
 }
 
 function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit, includeNormalBounds = true) {
-  if (tip.geometry?.includeBounds === false) return;
   const bounds = tip.geometry?.bounds;
   if (!bounds) return;
   // Legacy PGF arrow declarations include half the current line width in

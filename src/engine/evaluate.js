@@ -111,6 +111,7 @@ import {
   TREE_PARENT_ALIAS
 } from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
+import { resolveArrowActions, withoutArrowActions } from "../tikz/pathOperations/arrowActions.js";
 import { gridCartesianPair, gridLiteralPoint, gridSegments, gridStep } from "../tikz/pathOperations/grid.js";
 import { ellipseOptionLayers, ellipseRadiusKeys, hasOppositeEllipseWinding, markEllipseControlBounds, usesCompoundEllipses } from "../tikz/pathOperations/ellipse.js";
 import {
@@ -164,6 +165,7 @@ import { closePathCommand, curveToCommand, lineToCommand, moveToCommand } from "
 import {
   codeDefinitionsFromOptions,
   edgeStyleHintsFromOptions,
+  mergeOptionOrder,
   optionSetsLineWidth,
   findTopLevel,
   normalizeColor,
@@ -1524,10 +1526,10 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     ...styleDefinitionsFromOptions(statement.options || {}, env.styles || {})
   };
   const optionEnv = { ...env, styles: pathStyles };
-  const inheritedPictureOptions = { ...(env.pictureOptions || {}) };
+  const inheritedPictureOptions = inheritedPathInkOptions(env.pictureOptions);
   for (const key of Object.keys(statement.options || {})) delete inheritedPictureOptions[key];
   const rawOptions = resolveDynamicOptions(
-    withImplicitStyleOption("every path", { ...inheritedPictureOptions, ...(statement.options || {}) }, pathStyles),
+    { ...inheritedPictureOptions, ...withImplicitStyleOption("every path", statement.options || {}, pathStyles) },
     optionEnv
   );
   const normalized = normalizeOptions(statement.command, rawOptions, optionEnv);
@@ -1552,12 +1554,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathStyleEnv = { ...optionEnv, canvasScale: pathCanvasScale };
   const scaledStyle = scaleCanvasStyle(normalized.style, pathStyleScaleEnv(pathStyleEnv, rawOptions));
   const patternDefinition = scaledStyle.pattern ? optionEnv.patterns?.[scaledStyle.pattern] : null;
-  const resolvedStyle = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
-  // PGF does not run its arrow setup or endpoint-shortening branch when the
-  // current path is also used as a clipping path.
-  const style = tikzBoolean(pathOptions.clip)
-    ? { ...resolvedStyle, markerStart: undefined, markerEnd: undefined }
-    : resolvedStyle;
+  const style = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
   const pathPlane = canvasPlaneEnvironment(env, options, pathTransform);
   const pathEnv = {
     ...optionEnv,
@@ -1583,7 +1580,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   }
 
   const pathSegments = expandInlinePathForeachSegments(statement.path.segments, pathEnv);
-  const built = buildPath(pathSegments, pathEnv, diagnostics, pathOptions, style);
+  const built = buildPath(pathSegments, pathEnv, diagnostics, pathOptions, style, statement.command);
   const namedPath = semantic["name path global"] ?? semantic["name path"];
   if (namedPath) {
     pathEnv.namedPaths[String(namedPath).trim()] = built.commands.length
@@ -1619,20 +1616,33 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   // primitives bypass that hook; lowering preserves this distinction.
   // Inline nodes contribute separate boxes, not a replacement.
   const includeStrokeBounds = !tikzBoolean(pathOptions["tikzkit quick path"]);
+  const doubleStyle = doublePathStyle(semantic, env);
+  const shadingStyle = pathShadingStyle(style, semantic, pathEnv);
+  const requestedStyle = { ...style, ...shadingStyle, ...built.styleHints, ...doubleStyle };
+  const pathStyle = resolveArrowActions(requestedStyle, built.commands, built.actionOptions, {
+    splitClosed: built.splitContours.some(shape => isClosedPath(shape.commands)),
+    strokeInk: built.strokeInk ?? normalized.strokeInk
+  });
   if (!tikzBoolean(pathOptions.overlay) && built.boundsCommands?.length) {
-    ir.items.push(createBoundingBoxShape(built.boundsCommands, { includeStrokeBounds, style }));
+    ir.items.push(createBoundingBoxShape(built.boundsCommands, {
+      includeStrokeBounds, style: withoutArrowActions(pathStyle)
+    }));
   }
-
-  const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
-  if (!visible && pathEnv.trackLocalBounds && !tikzBoolean(pathOptions.overlay) && built.commands.length) {
-    ir.items.push(createBoundingBoxShape(built.commands));
+  const requestedArrowAction = requestedStyle.markerStart || requestedStyle.markerEnd ||
+    requestedStyle.shortenStart !== undefined || requestedStyle.shortenEnd !== undefined;
+  const visible = isVisiblePath(requestedArrowAction ? "path" : statement.command, pathStyle, semantic);
+  if (!visible && !tikzBoolean(pathOptions.overlay) &&
+      (pathEnv.trackLocalBounds || requestedArrowAction)) {
+    const geometry = built.commands.concat(built.splitContours.flatMap(s => s.commands));
+    if (geometry.length) ir.items.push(createBoundingBoxShape(geometry, requestedArrowAction ? { retainZeroExtent: true } : {}));
   }
   const shadows = pathGeneralShadows(semantic, pathEnv, style);
   addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
   addShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
-  if (visible) {
-    const doubleStyle = doublePathStyle(semantic, env);
-    const shadingStyle = pathShadingStyle(style, semantic, pathEnv);
+  if (visible || built.styleHints.visiblePic || built.shapes.some(shape => shape.subtype === "edge")) {
+    const shapeBase = { ...withoutArrowActions(style), ...shadingStyle, ...doubleStyle };
+    const splitContours = new Set(built.splitContours);
+    const contourStyle = splitContours.size ? withoutArrowActions(pathStyle) : shapeBase;
     const styledShapes = built.shapes.map((shape) => ({
       ...shape,
       subtype: shape.subtype || subtype,
@@ -1642,16 +1652,15 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       clipCircle: shape.clipCircle || clipCircle,
       clipPolygon: shape.clipPolygon || clipPolygon,
       shadows,
-      style: { ...style, ...shadingStyle, ...doubleStyle, ...(shape.style || {}) }
+      style: { ...(splitContours.has(shape) ? contourStyle : shapeBase), ...(shape.style || {}) }
     }));
     const compoundShape = compoundFillRuleShape(styledShapes, pathOptions, subtype, { allowShadows: Boolean(shadows?.length) });
     if (compoundShape && shadows) compoundShape.shadows = shadows;
     const shapesToRender = compoundShape ? [compoundShape] : styledShapes;
     for (const shape of shapesToRender) {
-      if (!shape.paintAfterPath) ir.items.push(shape);
+      if (!shape.paintAfterPath && shape.subtype !== "edge") ir.items.push(shape);
     }
-    if (hasDrawableCommands(built.commands, built.shapes)) {
-      const pathStyle = drawablePathStyle(style, { ...shadingStyle, ...built.styleHints, ...doubleStyle });
+    if (visible && hasDrawableCommands(built.commands, built.shapes, pathStyle)) {
       const item = createPathShape(
         applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs),
         pathStyle,
@@ -1680,7 +1689,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     for (const shape of shapesToRender) {
       // Circuit components drawn as PGF nodes cover the completed wire,
       // including any portion inside a filled body on very short connections.
-      if (shape.paintAfterPath) ir.items.push(shape);
+      if (shape.paintAfterPath || shape.subtype === "edge") ir.items.push(shape);
       addDecorationMarkers(shape, pathOptions, pathEnv, ir, diagnostics);
     }
   }
@@ -1766,15 +1775,19 @@ function isCoordinateNodePlacementPath(segments = []) {
   return Boolean(raw && !raw.includes(",") && !raw.includes(":") && !raw.includes("$"));
 }
 
-function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {}) {
+function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {}, pathCommand = "path") {
   const commands = [];
   const boundsMoves = [];
   const gridLiterals = segments.some(s => s.value === "grid") ? new WeakMap() : null;
   const compoundEllipses = usesCompoundEllipses(segments, pathOptions, pathStyle);
   const shapes = [];
+  const splitContours = [];
   const nodes = [];
   const styleHints = {};
   const effectivePathOptions = { ...pathOptions };
+  let actionOptions = pathOptions;
+  let strokeInk;
+  let pendingBorderMove;
   let current = null;
   let currentLocal = null;
   let currentBase = null;
@@ -1795,9 +1808,10 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         ...resolveDynamicOptions(segment.options || {}, env),
         decorate: true
       };
-      const nested = buildPath(segment.segments || [], env, diagnostics, nestedOptions, pathStyle);
+      const nested = buildPath(segment.segments || [], env, diagnostics, nestedOptions, pathStyle, pathCommand);
       commands.push(...nested.commands);
       shapes.push(...nested.shapes);
+      splitContours.push(...nested.splitContours);
       nodes.push(...nested.nodes);
       Object.assign(styleHints, nested.styleHints);
       const endpoints = pathCommandEndpoints(nested.commands);
@@ -1824,8 +1838,11 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     if (segment.kind === "options") {
       const segmentOptions = resolveDynamicOptions(segment.options || {}, env);
       env.circuitikz = withCircuitikzKeys(env.circuitikz, segmentOptions);
-      Object.assign(effectivePathOptions, segmentOptions);
-      Object.assign(styleHints, pathOptionStyleHints(effectivePathOptions, pathStyle, env));
+      mergeOptionOrder(effectivePathOptions, segmentOptions);
+      const normalized = normalizeOptions(pathCommand, effectivePathOptions, env);
+      actionOptions = normalized.options;
+      strokeInk = normalized.strokeInk;
+      Object.assign(styleHints, pathOptionStyleHints(normalized, env));
       continue;
     }
     if (segment.kind === "operator") {
@@ -1865,6 +1882,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       }
       if (!current) {
         commands.push(moveToCommand(point));
+        if (shouldBreakAtNodeExit(nodeRef) && nodeRef.node.shape !== "coordinate") pendingBorderMove = commands.at(-1);
         current = point;
         currentLocal = localPoint || point;
         currentBase = point;
@@ -1985,6 +2003,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         currentBase = point;
         currentNodeRef = nodeRef;
         start = point;
+        if (shouldBreakAtNodeExit(nodeRef) && nodeRef.node.shape !== "coordinate") pendingBorderMove = commands.at(-1);
         endNodeRef = nodeRef;
         lastSegment = null;
       }
@@ -2062,12 +2081,18 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         pending = null;
         continue;
       }
-      const edgeHints = edgeStyleHintsFromOptions(combinedEdgeOptions, env);
-      Object.assign(styleHints, edgeHints);
-      if (segment.kind === "edge" && !Object.hasOwn(edgeHints, "stroke") && !edgeExplicitlySuppressesDraw(combinedEdgeOptions)) {
-        styleHints.stroke = pathStyle.stroke === "none" ? "black" : pathStyle.stroke || "black";
+      // An edge runs its own \path[every edge,...]; a to contributes to
+      // this path instead. Edge-local paint must not enable the parent.
+      const separateEdge = segment.kind === "edge";
+      const addEdge = (route, splitClosed = false) => shapes.push(independentEdgeShape(
+        route, effectivePathOptions, localToOptions, env, splitClosed
+      ));
+      if (!separateEdge) {
+        const hints = edgeStyleHintsFromOptions(combinedEdgeOptions, env);
+        if (!pathOptionsRequestDraw(combinedEdgeOptions) && (styleHints.stroke ?? pathStyle.stroke) === "none") delete hints.stroke;
+        Object.assign(styleHints, hints);
+        Object.assign(effectivePathOptions, edgePathOptions(combinedEdgeOptions));
       }
-      Object.assign(effectivePathOptions, edgePathOptions(combinedEdgeOptions));
       if (customToPath) {
         const customEnv = customToPathEnvironment(
           env,
@@ -2083,7 +2108,6 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         const customLabels = customToPathLabelNodes(customToPath.nodeSlots, pendingInlineNodes, env);
         const routePrimitives = pathPrimitivesFromCommands(customBuilt.commands);
         const routeEndpoints = pathCommandEndpoints(customBuilt.commands);
-        const edgeStyle = segment.kind === "edge" ? edgeDrawableStyle(combinedEdgeOptions, pathStyle, env) : null;
 
         nodes.push(...customBuilt.nodes);
         shapes.push(...customBuilt.shapes);
@@ -2098,16 +2122,10 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         );
 
         if (segment.kind === "edge") {
-          const edgeCommands = applyPathDecoration(customBuilt.commands, combinedEdgeOptions, env);
-          shapes.push({
-            type: "path",
-            subtype: "edge",
-            commands: applyArrowEndpointShortening(edgeCommands, edgeStyle, customBuilt.endpointRefs),
-            style: edgeStyle,
-            includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(combinedEdgeOptions)
-          });
+          addEdge(customBuilt.commands, customBuilt.splitContours.some(shape => isClosedPath(shape.commands)));
           ({ current, currentLocal, currentBase, currentNodeRef, endNodeRef } = edgeOrigin);
         } else {
+          splitContours.push(...customBuilt.splitContours);
           appendCustomToPathCommands(commands, customBuilt.commands, currentNodeRef);
           current = routeEndpoints.end || to;
           currentLocal = null;
@@ -2127,7 +2145,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         const through = resolveCoordinate(arcThrough.through, env, diagnostics);
         const arc = tikzExtArcThroughCommands(currentBase || current, through, to, arcThrough, env);
         if (arc.center) env.coordinates[`arc through center${arcThrough.suffix || ""}`] = arc.center;
-        commands.push(...arc.commands);
+        if (separateEdge) addEdge([moveToCommand(currentBase || current), ...arc.commands]);
+        else commands.push(...arc.commands);
         flushInlinePathNodes(pendingInlineNodes, currentBase || current, to, nodes, env, pathStyle, effectivePathOptions);
         lastSegment = { from: currentBase || current, to };
         pendingInlineNodes = [];
@@ -2148,15 +2167,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         if (segment.kind === "edge") {
           // An edge is a separate stroked path, including when it loops back
           // to its source. Combining loops loses all but the final arrow tip.
-          const edgeStyle = edgeDrawableStyle(combinedEdgeOptions, pathStyle, env);
-          const edgeCommands = applyPathDecoration([moveToCommand(loop.start), ...loop.commands], combinedEdgeOptions, env);
-          shapes.push({
-            type: "path",
-            subtype: "edge",
-            commands: applyArrowEndpointShortening(edgeCommands, edgeStyle, { start: currentNodeRef, end: toNodeRef }),
-            style: edgeStyle,
-            includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(combinedEdgeOptions)
-          });
+          addEdge([moveToCommand(loop.start), ...loop.commands]);
         } else {
           if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, loop.start);
           commands.push(...loop.commands);
@@ -2191,7 +2202,6 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
               : null
           }
         : null;
-      const edgeStyle = segment.kind === "edge" ? edgeDrawableStyle(combinedEdgeOptions, pathStyle, env) : null;
       let clipped = curve
         ? clipNodeCurveEndpoints(
           edgeFrom,
@@ -2235,19 +2245,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle, effectivePathOptions);
         lastSegment = { from: clipped.from, to: clipped.to };
       }
-      if (segment.kind === "edge") {
-        const edgeCommands = applyPathDecoration(targetCommands, combinedEdgeOptions, env);
-        shapes.push({
-          type: "path",
-          subtype: "edge",
-          commands: applyArrowEndpointShortening(edgeCommands, edgeStyle, {
-            start: currentNodeRef,
-            end: toNodeRef
-          }),
-          style: edgeStyle,
-          includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(combinedEdgeOptions)
-        });
-      }
+      if (separateEdge) addEdge(targetCommands);
       pendingInlineNodes = [];
       if (segment.kind === "edge") {
         ({ current, currentLocal, currentBase, currentNodeRef, endNodeRef } = edgeOrigin);
@@ -2372,7 +2370,9 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       if (compoundEllipses) {
         commands.push(...shape.commands, moveToCommand(center));
       } else {
-        shapes.push(decoratedShape({ ...shape, subtype: semanticSubtype(pathOptions) }, effectivePathOptions, env));
+        const contour = decoratedShape({ ...shape, subtype: semanticSubtype(pathOptions) }, effectivePathOptions, env);
+        shapes.push(contour);
+        splitContours.push(contour);
         if (current && (center.x !== current.x || center.y !== current.y)) boundsMoves.push(moveToCommand(current));
       }
       // pgfpathellipse moves the physical pen to its center. The TikZ
@@ -2470,6 +2470,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     }
     if (segment.kind === "close" && start) {
       commands.push(closePathCommand());
+      pending = null;
       if (current) lastSegment = { from: current, to: start };
       current = start;
       endNodeRef = startNodeRef;
@@ -2477,6 +2478,10 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
   }
 
   flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env, pathStyle, effectivePathOptions);
+  // A bare shape reference waits for an outgoing segment to choose its
+  // border. An edge interrupts the path and does not flush that move.
+  if (pendingBorderMove && commands.at(-1) === pendingBorderMove &&
+      (pathStyle.markerStart || pathStyle.markerEnd || styleHints.markerStart || styleHints.markerEnd)) commands.pop();
   const roundedCommands = applyRoundedCornersToPath(commands, effectivePathOptions, env);
   // The requested corners contribute to the paper even when off the lattice.
   const originalBounds = roundedCommands === commands ? null : commands;
@@ -2485,6 +2490,9 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     decorationInputCommands: roundedCommands,
     boundsCommands: boundsMoves.length ? boundsMoves.concat(originalBounds || []) : originalBounds,
     shapes,
+    splitContours,
+    actionOptions,
+    strokeInk,
     nodes,
     styleHints,
     endpointRefs: { start: startNodeRef, end: endNodeRef }
@@ -6574,7 +6582,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     ...inlineNodeInheritedOptions(env, rawOptions, pathOptions),
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env);
-  let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle);
+  let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle, pathOptions);
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   return withDimensionFont(
     () => nodeDimensionFontSpec(expandedOptions, env),
@@ -6797,7 +6805,7 @@ function inlineNodeOptions(options = {}, pathStyle = {}, pathOptions = {}) {
     ...options
   };
   if (hasExplicitTextColor(merged)) return merged;
-  const inheritedText = inheritedInlinePathTextColor(pathStyle);
+  const inheritedText = inheritedInlinePathTextColor(pathStyle, pathOptions);
   if (!inheritedText) return merged;
   return {
     text: inheritedText,
@@ -6833,9 +6841,9 @@ function inlineNodePathPlacementOptions(pathOptions = {}) {
   return inherited;
 }
 
-function applyInlineBareFillCurrentColor(options = {}, semantic = {}, pathStyle = {}) {
+function applyInlineBareFillCurrentColor(options = {}, semantic = {}, pathStyle = {}, pathOptions = {}) {
   if (!semantic["tikzkit bare fill"]) return options;
-  const inheritedFill = inheritedInlinePathTextColor(pathStyle);
+  const inheritedFill = inheritedInlinePathTextColor(pathStyle, pathOptions);
   if (!inheritedFill) return options;
   return {
     ...options,
@@ -6856,8 +6864,8 @@ function inlineNodeInheritedOptions(env = {}, rawOptions = {}, pathOptions = {})
   return options;
 }
 
-function inheritedInlinePathTextColor(pathStyle = {}) {
-  return [pathStyle.textFill, pathStyle.stroke, pathStyle.fill]
+function inheritedInlinePathTextColor(pathStyle = {}, pathOptions = {}) {
+  return [pathStyle.textFill, pathStyle.stroke, pathStyle.fill, pathOptions["tikzkit current color"]]
     .find((value) => value && value !== "none" && value !== "transparent");
 }
 
@@ -11435,11 +11443,8 @@ function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
   if (!join) return;
   const fromName = join.from || chainUpdate.previousName;
   if (!fromName) return;
-  const rawOptions = {
-    "every edge": true,
-    "every join": true,
-    ...parseOptions(join.style || "")
-  };
+  const local = { "every join": true, ...parseOptions(join.style || "") };
+  const rawOptions = { "every edge": true, ...local };
   const normalized = normalizeOptions("draw", rawOptions, env);
   const style = scaleCanvasStyle(normalized.style, env);
   const { semantic, options: pathOptionsOnly } = normalized;
@@ -11449,7 +11454,7 @@ function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
       { kind: "coordinate", raw: fromName },
       {
         kind: "edge",
-        options: {},
+        options: { draw: true, ...local },
         to: chainUpdate.currentName,
         nodes: []
       }
@@ -11873,23 +11878,15 @@ function edgePathOptions(options = {}) {
   return picked;
 }
 
-function pathOptionStyleHints(options = {}, inheritedPathStyle = {}, env = {}) {
-  const normalized = normalizeOptions("path", options || {}, env);
+function pathOptionStyleHints(normalized, env) {
   const style = scaleCanvasStyle(normalized.style, env);
-  const hints = {};
-  const drawAction = pathOptionsRequestDraw(options);
-  const fillAction = pathOptionsRequestFill(options);
-  if (drawAction || fillAction) hints.pathAction = true;
-  if ((drawAction || inheritedPathStyle.stroke !== "none") && style.stroke && style.stroke !== "none") {
-    hints.stroke = style.stroke;
-  }
-  if ((fillAction || inheritedPathStyle.fill !== "none") && style.fill && style.fill !== "none") {
-    hints.fill = style.fill;
-  }
+  const hints = { stroke: style.stroke, fill: style.fill };
   if (Number.isFinite(Number(style.lineWidth))) hints.lineWidth = style.lineWidth;
   if (Array.isArray(style.dashArray)) hints.dashArray = style.dashArray;
-  if (style.markerStart) hints.markerStart = style.markerStart;
-  if (style.markerEnd) hints.markerEnd = style.markerEnd;
+  if (Object.hasOwn(style, "markerStart")) hints.markerStart = style.markerStart;
+  if (Object.hasOwn(style, "markerEnd")) hints.markerEnd = style.markerEnd;
+  if (style.shortenStart !== undefined) hints.shortenStart = style.shortenStart;
+  if (style.shortenEnd !== undefined) hints.shortenEnd = style.shortenEnd;
   if (style.opacity !== undefined) hints.opacity = style.opacity;
   if (style.fillOpacity !== undefined) hints.fillOpacity = style.fillOpacity;
   if (style.strokeOpacity !== undefined) hints.strokeOpacity = style.strokeOpacity;
@@ -11910,21 +11907,52 @@ function pathOptionsRequestFill(options = {}) {
   return !/^(?:none|false|0|no|off|transparent)$/i.test(String(value).trim());
 }
 
-function edgeExplicitlySuppressesDraw(options = {}) {
-  const draw = options.draw;
-  if (draw === false) return true;
-  if (draw === undefined || draw === null) return false;
-  return /^(?:none|false|0|no|off|transparent)$/i.test(String(draw).trim());
+function inheritedPathInkOptions(options = {}) {
+  const inherited = {};
+  for (const [key, value] of Object.entries(options)) {
+    // A new TikZ path resets its paint modes, not the graphics state's ink.
+    if (key === "draw" || key === "fill") {
+      if (value !== true && value !== "" && value !== "none") {
+        inherited[key === "draw" ? "tikzkit stroke ink" : "tikzkit fill ink"] = value;
+      }
+    } else if (key !== "clip") inherited[key] = value;
+  }
+  return inherited;
 }
 
-function edgeDrawableStyle(options = {}, inheritedPathStyle = {}, env = {}) {
-  const normalized = normalizeOptions("draw", options || {}, env);
-  const style = drawablePathStyle(scaleCanvasStyle(normalized.style, env), edgeStyleHintsFromOptions(options || {}, env));
-  if (!edgeExplicitlySuppressesDraw(options) && (!style.stroke || style.stroke === "none")) {
-    style.stroke = inheritedPathStyle.stroke && inheritedPathStyle.stroke !== "none" ? inheritedPathStyle.stroke : "black";
+function independentEdgeShape(route, parent, local, env, splitClosed) {
+  const edgeKeys = env.styles["every edge"] ? { "every edge": true, ...local } : { draw: true, ...local };
+  const inherited = inheritedPathInkOptions(parent);
+  for (const key of Object.keys(edgeKeys)) delete inherited[key];
+  const normalized = normalizeOptions("path", { ...inherited, ...edgeKeys }, env);
+  const options = normalized.options;
+  const commands = applyPathDecoration(route, options, env);
+  const style = resolveArrowActions(scaleCanvasStyle(normalized.style, env), commands, options, {
+    strokeInk: normalized.strokeInk, splitClosed
+  });
+  if ([style.markerStart, style.markerEnd].some(hasLegacyLatexFill)) {
+    // TikZ boxes the edge before applying the parent path's deferred color
+    // setters. PGF only copies its recorded pen to the fill ink when those
+    // records differ (pgf@arrows@color@setup); otherwise the backend fill survives.
+    const recorded = normalizeOptions("path", { ...inheritedPathInkOptions(env.pictureOptions), ...edgeKeys }, env);
+    const fill = recorded.strokeInk !== recorded.fillInk ? recorded.strokeInk : normalized.fillInk;
+    if (fill !== (style.arrowStroke ?? style.stroke)) {
+      for (const key of ["markerStart", "markerEnd"]) {
+        if (hasLegacyLatexFill(style[key])) style[key] = withLegacyLatexFill(style[key], fill);
+      }
+    }
   }
-  style.fill = "none";
-  return style;
+  return createPathShape(commands, style, { subtype: "edge", includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(options) });
+}
+
+function hasLegacyLatexFill(tip) {
+  return tip?.kind === "sequence" ? tip.tips.some(hasLegacyLatexFill) :
+    tip?.kind === "latex" && tip.legacy && tip.fill === "context-stroke" && !tip.stroke;
+}
+
+function withLegacyLatexFill(tip, fill) {
+  if (tip.kind === "sequence") return { ...tip, tips: tip.tips.map(t => withLegacyLatexFill(t, fill)) };
+  return hasLegacyLatexFill(tip) ? { ...tip, fill } : tip;
 }
 
 function loopDirectionFromOptions(options = {}) {
@@ -16958,11 +16986,9 @@ function semanticSubtype(options = {}) {
   return undefined;
 }
 
-function hasDrawableCommands(commands, shapes) {
-  if (commands.length === 0) return false;
-  if (commands.every((command) => command.type === "moveTo") && shapes.length > 0) return false;
-  if (commands.length === 1 && commands[0].type === "moveTo" && shapes.length > 0) return false;
-  return true;
+function hasDrawableCommands(commands, shapes, style = {}) {
+  return commands.length > 0 && (!shapes.length || style.markerStart || style.markerEnd ||
+    commands.some(command => command.type !== "moveTo"));
 }
 
 function compoundFillRuleShape(shapes = [], pathOptions = {}, subtype, { allowShadows = false } = {}) {
@@ -19351,9 +19377,7 @@ function interpretDecorationMarkingCode(marking, env, ir, diagnostics) {
 }
 
 function drawablePathStyle(style, styleHints = {}) {
-  const merged = { ...style, ...styleHints };
-  if ((merged.markerStart || merged.markerEnd) && merged.stroke === "none") merged.stroke = "black";
-  return merged;
+  return { ...style, ...styleHints };
 }
 
 function pathShadingStyle(style = {}, semantic = {}, env = {}) {

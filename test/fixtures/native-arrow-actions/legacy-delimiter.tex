@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+\begin{document}
+\begin{tikzpicture}[line width=1pt]
+  \draw[blue,arrows={square bracket-square bracket}] (0,0) -- (1,0) (1.5,0) -- (2.5,0);
+  \draw[red,arrows={square bracket-square bracket},tips=never] (0,-.55) -- (2.5,-.55);
+\end{tikzpicture}
+\end{document}

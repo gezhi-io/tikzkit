@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[line width=.8pt]
+  \draw[blue,<->,tips=proper] (0,0) .. controls (1.2,.8) and (1.2,-.8) .. (0,0);
+  \draw[red,<->] (1.25,0) .. controls (1.5,.55) and (1.85,.3) .. (2.2,.15);
+  \draw[teal,<->,tips=proper] (2.55,0) .. controls (2.55,0) and (2.55,0) .. (2.55,0);
+\end{tikzpicture}
+\end{document}

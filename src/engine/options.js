@@ -117,6 +117,8 @@ export function stripTexComments(input = "") {
 }
 
 function setParsedOption(options, key, value) {
+  if (key === "/pgf/tips") key = "tips";
+  if (key === "draw" || key === "fill") return setOrderedOption(options, key, value);
   if (key === "pattern" || key === "/tikz/pattern") {
     // PGF's empty/none forms only toggle filling. Keep that action distinct
     // from selecting ink so a bare key cannot shadow a scoped tile name.
@@ -258,6 +260,7 @@ export function normalizeOptions(command, rawOptions, env) {
   const semantic = {};
   const defaultArrowTip = parseDefaultArrowTip(expanded);
   let currentColor = "black";
+  let strokeInk = "black";
   let usesCurrentColorForFill = false;
   let solidFillInk;
   let patternInk;
@@ -284,6 +287,7 @@ export function normalizeOptions(command, rawOptions, env) {
       delete style.pattern;
       patternInk = undefined;
       solidFillInk = color;
+      strokeInk = color;
       applyCurrentColor(style, color, command);
       currentColor = color;
       semantic["tikzkit current color"] = color;
@@ -292,21 +296,31 @@ export function normalizeOptions(command, rawOptions, env) {
     }
     if (key.includes("!")) {
       const color = normalizeColor(key);
+      strokeInk = solidFillInk = color;
       applyCurrentColor(style, color, command);
       currentColor = color;
       semantic["tikzkit current color"] = color;
       if (usesCurrentColorForFill) style.fill = color;
       continue;
     }
-    if (key === "draw") {
-      style.stroke = value === true ? (style.stroke !== "none" ? style.stroke : style.textFill || "black") : normalizeColor(String(value));
+    if (key === "draw" || key === "tikzkit stroke ink") {
+      if (value !== true && value !== "" && value !== "none") strokeInk = normalizeColor(String(value));
+      if (key === "draw") {
+        const ink = command === "node" && value === true ? style.textFill ?? strokeInk : strokeInk;
+        style.stroke = value === "none" ? "none" : ink;
+      } else if (style.stroke !== "none") style.stroke = strokeInk;
+      continue;
+    }
+    if (key === "tikzkit fill ink") {
+      solidFillInk = normalizeColor(String(value));
+      if (style.fill !== "none") style.fill = solidFillInk;
       continue;
     }
     if (key === "fill") {
       if (value === true) {
         semantic["tikzkit bare fill"] = true;
         usesCurrentColorForFill = true;
-        style.fill = currentColor;
+        style.fill = solidFillInk ?? currentColor;
         if (patternInk) style.pattern = patternInk;
       } else {
         usesCurrentColorForFill = false;
@@ -478,7 +492,7 @@ export function normalizeOptions(command, rawOptions, env) {
   }
 
   resolveToAliases(style, env);
-  return { style, semantic, options: expanded };
+  return { style, semantic, options: expanded, strokeInk, fillInk: solidFillInk ?? currentColor };
 }
 
 function resolveToAliases(style, env = {}) {
@@ -529,16 +543,10 @@ function applyCurrentColor(style, color, command) {
     applyNodeColor(style, color);
     return;
   }
-  if (command === "fill") {
-    style.fill = color;
-    return;
-  }
-  if (command === "filldraw") {
-    style.stroke = color;
-    style.fill = color;
-    return;
-  }
-  style.stroke = color;
+  // Selecting ink is not a request to paint. In particular, a red \path
+  // can supply red arrow tips or node text without ever stroking its shaft.
+  if (style.stroke !== "none") style.stroke = color;
+  if ((command === "fill" || command === "filldraw" || command === "shade") && style.fill !== "none") style.fill = color;
 }
 
 export function arrowTipsFromOptions(rawOptions = {}, env = {}) {
@@ -1222,7 +1230,7 @@ function substituteStyleArgumentText(value, args = []) {
   });
 }
 
-function mergeOptionOrder(target, source) {
+export function mergeOptionOrder(target, source) {
   for (const [key, value] of Object.entries(source || {})) {
     setOrderedOption(target, key, value);
   }
@@ -1230,6 +1238,19 @@ function mergeOptionOrder(target, source) {
 }
 
 function setOrderedOption(options, key, value) {
+  if (key === "/pgf/tips") key = "tips";
+  if ((key === "draw" || key === "fill") && Object.hasOwn(options, key) &&
+      (value === true || value === "" || value === "none")) {
+    const prior = options[key];
+    if (prior !== true && prior !== "" && prior !== "none") {
+      // A later action-only key does not undo an earlier ink assignment.
+      // Keep that assignment *in place*: draw=blue,red,draw=none leaves red.
+      const ink = key === "draw" ? "tikzkit stroke ink" : "tikzkit fill ink";
+      const entries = Object.entries(options);
+      for (const [name] of entries) delete options[name];
+      for (const [name, entry] of entries) if (name !== ink) options[name === key ? ink : name] = entry;
+    }
+  }
   if (isRepeatableOption(key) && Object.hasOwn(options, key)) {
     options[key] = [...optionValues(options[key]), ...optionValues(value)];
     return;

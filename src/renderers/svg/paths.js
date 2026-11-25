@@ -16,10 +16,11 @@ import { blurShadowFilterId } from "./defs.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { renderUnitScale, scaleStyleForRenderUnit } from "./layout.js";
-import { svgPathData as pathData } from "./pathData.js";
+import { svgPathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { includePathCommandBounds } from "../../scene/index.js";
 import { curvedArrowPaint, curvedArrowTransformAttribute, shortenCubicCurve } from "./arrowBending.js";
+import { prepareArrowTerminals, terminalCurveForTip } from "./arrowTerminals.js";
 import { computerModernArrowGeometry } from "../../tikz/libraries/arrows.meta.js";
 import {
   legacyCircleArrowMetrics,
@@ -83,12 +84,22 @@ export function renderPathElement(item, unit) {
       }
       return renderDoublePath(item.commands || [], item.style, unit);
     }
-    if (item.subtype === "bagua-line") {
-      return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style, { lineCap: "butt", lineJoin: "miter" })} />`;
-    }
-    return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
+    const options = item.subtype === "bagua-line" ? { lineCap: "butt", lineJoin: "miter" } : undefined;
+    return renderSinglePath(item.commands, item.style, unit, options);
   }
   return renderArrowedPath(item, unit);
+}
+
+function paintPathData(commands = [], unit) {
+  // A move-only subpath paints nothing but can become getPointAtLength(0).
+  // Retain it in the scene for PGF bounds and terminal selection.
+  return svgPathData(commands.filter((command, i) => command.type !== "moveTo" ||
+    (i + 1 < commands.length && commands[i + 1].type !== "moveTo")), unit);
+}
+
+function renderSinglePath(commands, style, unit, options) {
+  const data = paintPathData(commands, unit);
+  return data ? `<path d="${data}"${styleAttributes(style, options)} />` : "";
 }
 
 function pathCommandBounds(commands = [], tightBezierBounds = false) {
@@ -104,63 +115,43 @@ function pathCommandBounds(commands = [], tightBezierBounds = false) {
 
 export function renderArrowedPath(item, unit) {
   const style = item.style || {};
-  const terminal = pathTerminalSegments(item.commands || []);
-  const startTips = style.markerStart ? resolveInlineArrowTipSequence(style.markerStart, style, "start") : [];
-  const endTips = style.markerEnd ? resolveInlineArrowTipSequence(style.markerEnd, style, "end") : [];
-  const precise = { start: startTips.some(tip => tip.bending), end: endTips.some(tip => tip.bending) };
-  const explicitCommands = shortenPathTerminals(
-    item.commands || [],
-    terminal,
-    (Number(style.shortenStart) || 0) / unit,
-    (Number(style.shortenEnd) || 0) / unit,
-    precise
-  );
-  const placedTerminal = pathTerminalSegments(explicitCommands);
-  const startShorten = startTips.length && placedTerminal.first?.shortenable
-    ? resolvedArrowSequenceShortening(startTips) / unit
-    : 0;
-  const endShorten = endTips.length && placedTerminal.last?.shortenable
-    ? resolvedArrowSequenceShortening(endTips) / unit
-    : 0;
-  const commands = shortenPathTerminals(explicitCommands, placedTerminal, startShorten, endShorten, precise);
+  const { commands, placements } = layoutArrowedPath(item, unit);
   const pathStyle = { ...style, markerStart: undefined, markerEnd: undefined };
-  const pieces = [
-    pathStyle.doubleColor !== undefined
-      ? renderDoublePath(commands, pathStyle, unit, { omitWrapper: true })
-      : `<path d="${pathData(commands, unit)}"${styleAttributes(pathStyle, { omitMarkers: true })} />`
-  ];
-
-  if (startTips.length && placedTerminal.first) {
-    for (const placed of placeResolvedInlineArrowTips(
-      startTips,
-      placedTerminal.first.start,
-      placedTerminal.first.startUx,
-      placedTerminal.first.startUy,
-      unit
-    )) {
-      pieces.push(renderInlineArrowTip(placed.tip, placed.point, (placedTerminal.first.startAngle ?? placedTerminal.first.angle) + 180, unit, {
-        placed,
-        terminal: placedTerminal.first,
-        side: "start"
-      }));
-    }
-  }
-  if (endTips.length && placedTerminal.last) {
-    for (const placed of placeResolvedInlineArrowTips(
-      endTips,
-      placedTerminal.last.end,
-      -(placedTerminal.last.endUx ?? placedTerminal.last.ux),
-      -(placedTerminal.last.endUy ?? placedTerminal.last.uy),
-      unit
-    )) {
-      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.last.angle, unit, {
-        placed,
-        terminal: placedTerminal.last,
-        side: "end"
-      }));
-    }
+  if (!placements.length) return renderPathElement({ ...item, commands, style: pathStyle }, unit);
+  const pieces = [pathStyle.doubleColor !== undefined && pathStyle.stroke !== "none"
+    ? renderDoublePath(commands, pathStyle, unit, { omitWrapper: true })
+    : renderSinglePath(commands, pathStyle, unit, { omitMarkers: true })];
+  for (const placed of placements) {
+    const angle = svgAngle(placed.outward);
+    pieces.push(renderInlineArrowTip(placed.tip, placed.point, angle === -180 ? 180 : angle, unit, {
+      placed, terminal: placed.curve, side: placed.side
+    }));
   }
   return `<g class="tikz-arrowed-path${pathStyle.doubleColor !== undefined ? " tikz-double-path" : ""}">${pieces.join("")}</g>`;
+}
+
+export function layoutArrowedPath(item, unit) {
+  const style = item.style || {};
+  const start = resolveInlineArrowTipSequence(style.markerStart, style, "start");
+  const end = resolveInlineArrowTipSequence(style.markerEnd, style, "end");
+  const startOffset = Number(style.shortenStart) || 0;
+  const endOffset = Number(style.shortenEnd) || 0;
+  const options = (tips, offset) => ({
+    distance: (offset + resolvedArrowSequenceShortening(tips)) / unit,
+    precise: tips.some(tip => tip.bending)
+  });
+  const path = prepareArrowTerminals(item.commands || [], options(start, startOffset), options(end, endOffset));
+  const placements = [];
+  const place = (tips, frame, side, offset) => {
+    if (!frame) return;
+    const { endpoint, outward, curve } = frame;
+    for (const placed of placeResolvedInlineArrowTips(tips, endpoint, -outward.x, -outward.y, unit, offset)) {
+      placements.push({ ...placed, outward, curve: terminalCurveForTip(curve, side, placed), side });
+    }
+  };
+  place(start, path.start, "start", startOffset);
+  place(end, path.end, "end", endOffset);
+  return { commands: path.commands, placements };
 }
 
 export function resolveInlineArrowTipSequence(rawTip, style = {}, side = "end") {
@@ -228,9 +219,9 @@ export function resolvedArrowSequenceShortening(tips = []) {
   return shortening;
 }
 
-export function placeResolvedInlineArrowTips(tips, endpoint, inwardUx, inwardUy, unit = 1) {
+export function placeResolvedInlineArrowTips(tips, endpoint, inwardUx, inwardUy, unit = 1, explicitShorten = 0) {
   const placements = new Array(tips.length);
-  let outerAdvance = 0;
+  let outerAdvance = explicitShorten;
   for (let index = tips.length - 1; index >= 0; index -= 1) {
     const tip = tips[index];
     const offset = outerAdvance + tip.separation + (Number(tip.geometry.placement) || 0);
@@ -249,7 +240,8 @@ export function placeResolvedInlineArrowTips(tips, endpoint, inwardUx, inwardUy,
 
 export function renderDoublePath(commands, style = {}, unit, options = {}) {
   const { outerStyle, innerStyle } = doubleStrokeStyles(style);
-  const data = pathData(commands, unit);
+  const data = paintPathData(commands, unit);
+  if (!data) return "";
   const strokeOptions = { omitMarkers: true, lineCap: options.lineCap, lineJoin: options.lineJoin };
   const paths = [
     `<path class="tikz-double-outer" d="${data}"${styleAttributes(outerStyle, strokeOptions)} />`,
@@ -260,6 +252,8 @@ export function renderDoublePath(commands, style = {}, unit, options = {}) {
 }
 
 export function renderCompactDashedDoublePath(commands, style = {}, unit) {
+  const data = paintPathData(commands, unit);
+  if (!data) return "";
   const compactStyle = {
     ...style,
     fill: "none",
@@ -268,7 +262,7 @@ export function renderCompactDashedDoublePath(commands, style = {}, unit) {
     doubleColor: undefined,
     doubleDistance: undefined
   };
-  return `<path class="tikz-compact-dashed-double" d="${pathData(commands, unit)}"${styleAttributes(compactStyle, {
+  return `<path class="tikz-compact-dashed-double" d="${data}"${styleAttributes(compactStyle, {
     omitMarkers: true,
     lineCap: "butt",
     lineJoin: "miter"
@@ -421,7 +415,7 @@ export function svgAngle(vector) {
 export function resolveInlineArrowTip(tip, style = {}) {
   const source = typeof tip === "string" ? {} : tip || {};
   const raw = typeof tip === "string" ? createArrowTip(tip === "arrow" ? "to" : tip) : createArrowTip(tip?.kind, source);
-  const baseStroke = style.stroke === "none" ? "black" : style.stroke || "black";
+  const baseStroke = style.stroke && style.stroke !== "none" ? style.stroke : style.arrowStroke || "black";
   const explicitStroke = source.stroke && source.stroke !== "context-stroke";
   const fill = raw.fill && raw.fill !== "context-stroke" ? raw.fill : baseStroke;
   const declaredArrow = raw.declaredArrow
@@ -750,6 +744,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
           `C ${format(-7 * unit)} ${format(2 * unit)} ${format(-2.6667 * unit)} ${format(0.5 * unit)} 0 0 Z`
         ].join(" "),
         shorten: classic.shorten,
+        includeBounds: false,
         bounds: {
           minX: -classic.back,
           maxX: 0,
@@ -1497,6 +1492,7 @@ function legacyDelimiterInlineGeometry(metrics) {
 
   return {
     path,
+    includeBounds: false,
     shorten: metrics.placement,
     terminalPlacement: metrics.placement,
     placement: metrics.placement,

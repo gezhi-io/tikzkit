@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[line width=1.2pt,>=latex]
+  \path[blue,<->,tips] (0,0) -- (2,0);
+  \path[red,<->,tips=proper] (0,-.4) -- (2,-.4);
+  \path[orange,<->] (0,-.8) -- (2,-.8);
+  \fill[teal,->,tips=true] (0,-1.2) -- (1,-1) -- (2,-1.2);
+  \filldraw[draw=blue,fill=yellow!40,->] (0,-1.75) -- (1,-1.45) -- (2,-1.75);
+\end{tikzpicture}
+\end{document}

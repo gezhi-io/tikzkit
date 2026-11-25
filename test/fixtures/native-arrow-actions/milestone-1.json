@@ -1,0 +1,18 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "arrow-actions-manual-multiple",
+    "arrow-actions-manual-trailing",
+    "arrow-actions-manual-proper",
+    "arrow-actions-manual-closed",
+    "arrow-actions-direction",
+    "arrow-actions-scopes",
+    "arrow-actions-paint-actions",
+    "arrow-actions-mixed-closed",
+    "arrow-actions-curves",
+    "arrow-actions-legacy-delimiter",
+    "arrow-actions-gallery",
+    "arrow-actions-network",
+    "arrow-actions-silent-extent"
+  ]
+}

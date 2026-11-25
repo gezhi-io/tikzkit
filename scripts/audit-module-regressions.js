@@ -87,9 +87,9 @@ try {
       await page.evaluate(async () => {
         await document.fonts.ready;
         const svg = document.querySelector("svg");
-        const box = svg.getBoundingClientRect();
-        svg.style.width = `${box.width * 3}px`;
-        svg.style.height = `${box.height * 3}px`;
+        // Zoom the physical SVG length before layout rounds it. Multiplying
+        // the rounded viewport distorts long, shallow pictures at 3x.
+        svg.style.zoom = "3";
       });
       const failedFonts = await page.evaluate(() => [...document.fonts].filter(f => f.status === "error").map(f => f.family));
       assert.deepEqual(failedFonts, [], `${id}/${title}: failed browser fonts`);

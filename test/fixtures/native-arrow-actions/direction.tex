@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[line width=1.4pt]
+  \draw[gray!35] (-.3,-.4) rectangle (2.8,.4);
+  \draw[red,->] (0,0);
+  \draw[blue,<-] (.65,0) -- (.65,0);
+  \draw[teal,<->] (1.3,0);
+  \draw[violet,->,tips=proper] (1.95,0) -- (1.95,0);
+  \draw[orange,<->,tips=on proper draw] (2.5,0);
+  \draw[<->];
+\end{tikzpicture}
+\end{document}

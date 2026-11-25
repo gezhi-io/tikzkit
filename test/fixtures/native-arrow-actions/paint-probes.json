@@ -1,0 +1,72 @@
+{
+  "arrow-actions-direction": {
+    "sourceSha256": "4d1bc163fcb3e440f5d135831762bccb1c4cda8f086a2abbc4c9bdcc7868a3dd",
+    "referenceSize": [373, 113],
+    "probes": {
+      "redPointHead": {"px": [44, 60], "rgb": "#ff0000"},
+      "leftArm": {"px": [39, 65], "rgb": "#ff0000"},
+      "rightArm": {"px": [51, 65], "rgb": "#ff0000"},
+      "shortBlueStroke": {"px": [118, 53], "rgb": "#0000ff"},
+      "blueTip": {"px": [112, 65], "rgb": "#0000ff"},
+      "doubleTealTip": {"px": [198, 65], "rgb": "#008080"},
+      "properNoViolet": {"px": [267, 60], "rgb": "#ffffff"},
+      "properNoOrange": {"px": [327, 60], "rgb": "#ffffff"}
+    }
+  },
+  "arrow-actions-paint-actions": {
+    "sourceSha256": "69a38640f4ffd598ec4e7875c8227f233ddef4315107c286b6165c856624a5dc",
+    "referenceSize": [248, 217],
+    "probes": {
+      "blueStart": {"px": [23, 7], "rgb": "#0000ff"},
+      "blueEnd": {"px": [223, 7], "rgb": "#0000ff"},
+      "noBlueShaft": {"px": [124, 7], "rgb": "#ffffff"},
+      "redStart": {"px": [23, 53], "rgb": "#ff0000"},
+      "redEnd": {"px": [222, 53], "rgb": "#ff0000"},
+      "noRedShaft": {"px": [124, 53], "rgb": "#ffffff"},
+      "silentDefault": {"px": [124, 99], "rgb": "#ffffff"},
+      "filledWedge": {"px": [124, 133], "rgb": "#008080"},
+      "noTealTip": {"px": [225, 137], "rgb": "#ffffff"},
+      "openFillDrawTip": {"px": [218, 200], "rgb": "#0000ff"}
+    }
+  },
+  "arrow-actions-scopes": {
+    "sourceSha256": "43946aa58fae0998af791fdc6aa2fad303d78bc0e03d768189a88c3ef865ebb2",
+    "referenceSize": [247, 179],
+    "probes": {
+      "uncutBlueStart": {"px": [12, 9], "rgb": "#0000ff"},
+      "uncutBlueEnd": {"px": [233, 9], "rgb": "#0000ff"},
+      "noBlueWing": {"px": [28, 4], "rgb": "#ffffff"},
+      "restoredRedWing": {"px": [28, 45], "rgb": "#ff0000"},
+      "restoredRedEnd": {"px": [218, 45], "rgb": "#ff0000"},
+      "falseHasShaft": {"px": [125, 89], "rgb": "#008080"},
+      "noTealWing": {"px": [28, 84], "rgb": "#ffffff"},
+      "unscopedWing": {"px": [28, 125], "rgb": "#bf0040"},
+      "unscopedShaft": {"px": [130, 129], "rgb": "#bf0040"}
+    }
+  },
+  "arrow-actions-mixed-closed": {
+    "sourceSha256": "92495a0652aa1b6dac34328d45341a4968738e7bece8b9793ff89886d57b5c9d",
+    "referenceSize": [327, 231],
+    "probes": {
+      "blueRail": {"px": [210, 39], "rgb": "#0000ff"},
+      "moveAfterCycle": {"px": [114, 39], "rgb": "#ffffff"},
+      "noBlueWing": {"px": [299, 34], "rgb": "#ffffff"},
+      "redRail": {"px": [210, 118], "rgb": "#ff0000"},
+      "noRedWing": {"px": [298, 113], "rgb": "#ffffff"},
+      "independentEdgeShaft": {"px": [210, 198], "rgb": "#008080"},
+      "independentEdgeTip": {"px": [297, 202], "rgb": "#000000"}
+    }
+  },
+  "arrow-actions-legacy-delimiter": {
+    "sourceSha256": "44bec9ebf468c27d2371829482b3267d0f48a0eb28cf50184f944ce1c0026e5c",
+    "referenceSize": [304, 83],
+    "probes": {
+      "firstPlainShaft": {"px": [60, 9], "rgb": "#0000ff"},
+      "noFirstBracket": {"px": [11, 19], "rgb": "#ffffff"},
+      "lastStartBracket": {"px": [182, 19], "rgb": "#0000ff"},
+      "lastEndBracket": {"px": [291, 19], "rgb": "#0000ff"},
+      "disabledRowShaft": {"px": [115, 72], "rgb": "#ff0000"},
+      "noDisabledBracket": {"px": [290, 61], "rgb": "#ffffff"}
+    }
+  }
+}

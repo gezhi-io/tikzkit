@@ -66,6 +66,13 @@ export const tikzCommand = {
       notes: "TikZ path plots and function samples cover common math-gallery cases."
     },
     {
+      name: "tips",
+      category: "path paint",
+      status: "partial",
+      implementedBy: "src/tikz/pathOperations/arrowActions.js:resolveArrowActions + src/renderers/svg/arrowTerminals.js:prepareArrowTerminals + src/renderers/svg/paths.js:renderArrowedPath",
+      notes: "on draw, true, proper, on proper draw, false and never select whether to paint arrow tips. Eligibility belongs to the entire path; only the final open subpath receives tips. Independently painted edges are separate actions."
+    },
+    {
       name: "cycle / close path",
       category: "path operation",
       status: "implemented",

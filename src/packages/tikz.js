@@ -157,3 +157,8 @@ texPackage.features.push("Shared circle/ellipse operation keys and compound elli
 texPackage.implementedBy += " + src/tikz/pathOperations/ellipse.js + src/engine/evaluate.js:resolvePathEllipse";
 texPackage.localSourceReviewedLatest += "; tikz.code.tex:286-297,3542-3623 (radius keys, local origin, legacy and modern branches); pgfcorepathconstruct.code.tex:907-1007 (ellipse cubics, close and center move); pgfmanual-en-tikz-paths.tex:438-536 and pgfmanual-en-tikz-actions.tex:804-824";
 texPackage.registryNoteSuffixLatest += " Modern circle and ellipse operations share ordered radius, every circle and local transform/center semantics; legacy literal radii bypass the style. Compound outlines preserve winding holes and single-stroke transparency. Native evidence and limits: docs/qa/2026-11-25-native-path-ellipses.md.";
+
+texPackage.features.push("Arrow tip eligibility by path paint action and terminal subpath");
+texPackage.implementedBy += " + src/tikz/pathOperations/arrowActions.js:resolveArrowActions + src/renderers/svg/arrowTerminals.js:prepareArrowTerminals + src/renderers/svg/paths.js:renderArrowedPath";
+texPackage.localSourceReviewedLatest += "; pgfcorepathusage.code.tex:49-249,316-655 and pgfcorepathprocessing.code.tex:140-240 (path actions, final subpath, closed and degenerate paths)";
+texPackage.registryNoteSuffixLatest += " Core /pgf/tips uses the paint action and the final open subpath, and rejects closed contours. Point-only and returning cubic cases are checked against native PGF. See docs/qa/2026-11-25-native-arrow-actions.md for commands, visual evidence and limits.";

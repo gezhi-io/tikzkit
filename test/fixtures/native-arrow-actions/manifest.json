@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "id": "arrow-actions-manual-multiple",
+      "source": "manual-multiple.tex",
+      "title": "Manual: both tips belong to the final open subpath",
+      "arrowGeometry": true
+    },
+    {
+      "id": "arrow-actions-manual-trailing",
+      "source": "manual-trailing.tex",
+      "title": "Manual: point remaining after a visible segment",
+      "arrowGeometry": true
+    },
+    {
+      "id": "arrow-actions-manual-proper",
+      "source": "manual-proper.tex",
+      "title": "Manual: a final point is not a proper subpath",
+      "arrowGeometry": true
+    },
+    {
+      "id": "arrow-actions-manual-closed",
+      "source": "manual-closed.tex",
+      "title": "Manual: a closed circle followed by an open segment",
+      "arrowGeometry": true
+    },
+    {
+      "id": "arrow-actions-direction",
+      "source": "direction.tex",
+      "title": "Point-only arrows and repeated coordinates"
+    },
+    {
+      "id": "arrow-actions-scopes",
+      "source": "scopes.tex",
+      "title": "Scoped arrow policy, explicit shortening and a clipped stroke"
+    },
+    {
+      "id": "arrow-actions-paint-actions",
+      "source": "paint-actions.tex",
+      "title": "Silent paths, fill, and fill-and-stroke use different actions"
+    },
+    {
+      "id": "arrow-actions-mixed-closed",
+      "source": "mixed-closed.tex",
+      "title": "Cycle, rectangle and independently painted edge"
+    },
+    {
+      "id": "arrow-actions-curves",
+      "source": "curves.tex",
+      "title": "Returning cubics and properly degenerate cubics"
+    },
+    {
+      "id": "arrow-actions-legacy-delimiter",
+      "source": "legacy-delimiter.tex",
+      "title": "Legacy square bracket on a segmented interval"
+    },
+    {
+      "id": "arrow-actions-gallery",
+      "source": "../core-to-arrows/directions.tex",
+      "title": "Gallery control: ordinary diagonal, vertical and reversed arrows",
+      "arrowGeometry": true
+    },
+    {
+      "id": "arrow-actions-network",
+      "source": "../examples/latex-examples/feed-forward-perceptron.tex",
+      "title": "Original gallery: 22 independent directed edges in a perceptron"
+    },
+    {
+      "id": "arrow-actions-silent-extent",
+      "source": "silent-extent.tex",
+      "title": "Suppressed arrows keep their unpainted layout extent"
+    }
+  ]
+}

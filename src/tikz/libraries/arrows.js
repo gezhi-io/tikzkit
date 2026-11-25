@@ -217,6 +217,10 @@ tikzLibrary.implements.push(
 );
 tikzLibrary.notes += " A sixteenth source review on 2026-09-05 covered `\\pgfarrowssavethe` and `\\pgfarrowssave` at pgfcorearrows.code.tex lines 654-700 and 742-752, plus their use by Straight Barb, Hooks, and Tee Barb in pgflibraryarrows.meta.code.tex. TikZKit now snapshots only explicitly saved setup registers and simple numeric/dimension macros, restores them before drawing, preserves assignment/advance/save source order on one line, accepts saved scalar macros beside units or dimension registers, and evaluates them in declared arc angles. Unsaved setup temporaries remain isolated. The process flow, mathematical map, and force-vector fixtures move from three missing-tip diagnostics to zero and match MacTeX/tikztosvg arrow direction, relative aperture, active-line-width growth, and shaft shortening. Arbitrary token-list macros, pgfmath-generated saved macros, conditionals, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, and complete clip-region rendering remain partial.";
 
+tikzLibrary.implementedBy += " + src/tikz/pathOperations/arrowActions.js:resolveArrowActions + src/renderers/svg/arrowTerminals.js:prepareArrowTerminals + src/renderers/svg/paths.js:renderArrowedPath";
+tikzLibrary.features.push("Shared PGF arrow-tip eligibility and independent edge paint");
+tikzLibrary.notes += " Core /pgf/tips uses the paint action and the final open subpath, and rejects closed contours. Point-only and returning cubic cases are checked against native PGF. See docs/qa/2026-11-25-native-arrow-actions.md for commands, visual evidence and limits.";
+
 export function legacyPrimeArrowMetrics(kind, lineWidth) {
   const match = String(kind || "").trim().toLowerCase()
     .match(/^(latex|stealth)-prime(-reversed)?$/u);

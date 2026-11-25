@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[line width=1pt,>=latex]
+  \draw[blue,<->] (0,0) -- (.65,.26) -- (.65,-.26) -- cycle (1.2,0) -- (2.7,0);
+  \draw[red,<->] (1.2,-.7) -- (2.7,-.7) (0,-.9) rectangle (.65,-.5);
+  \path[draw=teal,->] (0,-1.6) rectangle (.65,-1.2) (.9,-1.4) edge (2.7,-1.4);
+\end{tikzpicture}
+\end{document}
