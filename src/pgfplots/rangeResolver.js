@@ -318,21 +318,17 @@ function sampleVariable(plot, axis) {
   return name && name !== "x" ? name : undefined;
 }
 
-export function sampleFunctionDataPoints(plot, axisOptions = {}, options = {}) {
+function linePlotSamples(plot, axisOptions, options) {
   const plotDomain = options.domain || parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
   const explicitSamples = parseSamplesAt(plot.options["samples at"] ?? axisOptions["samples at"]);
-  const sampleValues = explicitSamples.length
-    ? explicitSamples
-    : sampleDomain(
-        plotDomain,
-        axisSamples(
-          plot.options.samples || axisOptions.samples || options.pgfplotsSamples || 25,
-          options.pgfplotsMaxSamples || options.pgfplotsSamples || 1200
-        )
-      );
-  const contextDomain = explicitSamples.length
-    ? { start: sampleValues[0], end: sampleValues[sampleValues.length - 1] }
-    : plotDomain;
+  if (explicitSamples.length) return { values: explicitSamples, domain: { start: explicitSamples[0], end: explicitSamples.at(-1) } };
+  const count = axisSamples(plot.options.samples || axisOptions.samples || options.pgfplotsSamples || 25,
+    options.pgfplotsMaxSamples || options.pgfplotsSamples || 1200);
+  return { values: sampleDomain(plotDomain, count), domain: plotDomain };
+}
+
+export function sampleFunctionDataPoints(plot, axisOptions = {}, options = {}) {
+  const { values: sampleValues, domain: contextDomain } = linePlotSamples(plot, axisOptions, options);
   const values = evaluateAxisExpressionSamples(plot.expression, sampleValues, axisOptions, {
     domain: options.scalarSurvey ? undefined : contextDomain, sampleVariable: sampleVariable(plot, axisOptions)
   });
@@ -391,9 +387,7 @@ export function parseSamplesAt(raw) {
 }
 
 export function sampleParametricDataPoints(plot, axisOptions = {}, options = {}) {
-  const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
-  const samples = axisSamples(plot.options.samples || axisOptions.samples || options.pgfplotsSamples || 25, options.pgfplotsSamples || 1200);
-  const values = sampleDomain(plotDomain, samples);
+  const { values } = linePlotSamples(plot, axisOptions, options);
   const context = { sampleVariable: sampleVariable(plot, axisOptions) };
   const series = expr => evaluateAxisExpressionSamples(expr, values, axisOptions, context);
   const xs = series(plot.xExpression), ys = series(plot.yExpression);
@@ -401,7 +395,7 @@ export function sampleParametricDataPoints(plot, axisOptions = {}, options = {})
   const dataPoints = [];
   const jump = (plot.options["unbounded coords"] ?? axisOptions["unbounded coords"]) === "jump";
   let interrupted = false;
-  for (let index = 0; index < samples; index += 1) {
+  for (let index = 0; index < values.length; index += 1) {
     const px = xs[index], py = ys[index], pz = zs[index];
     if (options.scalarSurvey || (Number.isFinite(px) && Number.isFinite(py) && (!plot.is3d || Number.isFinite(pz)))) {
       const point = plot.is3d ? { x: px, y: py, z: pz } : { x: px, y: py };

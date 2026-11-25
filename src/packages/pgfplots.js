@@ -280,3 +280,8 @@ texPackage.features.push("Sampled constant and jump plots clipped after construc
 texPackage.implementedBy += "; src/pgf/stepPlot.js:stepPlotCommands; src/pgfplots/addplotLowering.js";
 texPackage.localSourceReviewedLatest += "; pgflibraryplothandlers.code.tex:610-808 (constant and jump paths); pgfplotscoordprocessing.code.tex:7544-7590 (plot handler replay); pgfplotsplothandlers.code.tex:688-691 (end/start on jump); pgfplots.code.tex:9183-9188 (axis clipping)";
 texPackage.registryNoteSuffixLatest += " Sampled step plots retain their off-screen observations until the constructed path is clipped. A visible corner is not discarded when its data chord misses the frame. Scope and evidence: docs/qa/2026-11-26-step-plots.md.";
+
+texPackage.features.push("Sampled fixed and interval bars with independent markers on linear and reversed logarithmic axes");
+texPackage.implementedBy += "; src/pgfplots/bars.js; src/pgfplots/addplotLowering.js:sampled bar replay";
+texPackage.localSourceReviewedLatest += "; pgfplotscoordprocessing.code.tex:7544-7590 (projected coordinate replay); pgfplotsplothandlers.code.tex:688-691 (stream restarts); pgflibraryplothandlers.code.tex:400-607 (rectangle and interval handlers)";
+texPackage.registryNoteSuffixLatest += " Sampled bar plots paint rectangles rather than chords and preserve raw observations for markers, including the final interval boundary. Scope and visual evidence: docs/qa/2026-11-26-bar-plots.md.";

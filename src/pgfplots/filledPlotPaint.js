@@ -50,10 +50,15 @@ export function filledPlotPaint(options = {}, axis = {}, { legendDraw = false } 
   const fillOption = filled ? "fill=" + fill : legendDraw && !Object.hasOwn(options, "fill") ? "" : "fill=none";
   const fillStyle = filled && pattern ? joinOptions(["pattern=" + pattern,
     options["pattern color"] && "pattern color=" + options["pattern color"]]) : fillOption;
+  const rule = windingRule(options) ?? windingRule(axis);
   return {
     currentColor,
     fillStyle,
-    style: joinOptions([fillStyle, "draw=" + (draw || legendDraw ? stroke : "none"), width, cap, join, dash, ...alpha]),
+    style: joinOptions([fillStyle, "draw=" + (draw || legendDraw ? stroke : "none"), width, cap, join, dash, rule, ...alpha]),
     mark: { stroke, fill: options["mark fill"] ?? fill, alpha }
   };
+}
+
+function windingRule(options) {
+  return Object.keys(options).findLast(key => /^(?:\/tikz\/)?(?:even odd|nonzero) rule$/.test(key))?.replace(/^\/tikz\//, "");
 }

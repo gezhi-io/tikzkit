@@ -67,14 +67,22 @@ function extractBalancedGroup(source, start) {
 
 export function mergePgfplotsOptionMaps(target = {}, source = {}) {
   const merged = { ...target };
-  for (const [key, value] of Object.entries(source || {})) {
+  for (const [raw, value] of Object.entries(source || {})) {
+    const key = raw === "/tikz/mark" ? "mark" : raw;
     if (isAccumulatingPgfplotsOption(key) && Object.hasOwn(merged, key)) {
       merged[key] = [...optionValues(merged[key]), ...optionValues(value)];
       continue;
     }
     // An author option overriding a cycle/style key executes after that style.
     if (Object.hasOwn(merged, key)) delete merged[key];
-    merged[key] = value;
+    if (key === "mark") {
+      // The shared parser retains repeated decoration marks. A plot has one
+      // marker register; its last assignment (even an empty one) wins.
+      const last = Array.isArray(value) ? value.at(-1) : value;
+      merged[key] = String(last ?? "").trim() ? last : "none";
+    } else {
+      merged[key] = value;
+    }
   }
   return merged;
 }

@@ -89,8 +89,10 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     const barAxis = ["y", "x"].find(axis => isAxisBarPlot(axisOptions, plot.options, axis));
     if (barAxis) {
       const layout = createBarLayout(axisOptions, plot.options, geometry, barAxis, ranges, plot.barGroup);
-      const clip = plot.barGroup || histPaint ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
-      commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip));
+      const clip = axisViewportClipOption(axisOptions["clip mode"] === "individual"
+        ? { clip: plot.options.clip ?? axisOptions.clip } : axisOptions, ranges, geometry);
+      commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip,
+        plot.source === "expression"));
       commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex, barAxis, layout));
       addMarks(commands, dataPoints, (histPaint ?? filledPlotPaint(plot.options, axisOptions)).mark, layout);
       return commands;

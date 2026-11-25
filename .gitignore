@@ -26,6 +26,7 @@ coverage/
 .cache/
 .parcel-cache/
 .playwright-cli/
+__pycache__/
 
 # Generated TikZ/gallery artifacts
 output/

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "manual-signed-ybar",
+      "title": "Vertical bars: gains and losses at five observations",
+      "source": "manual-signed-ybar.tex"
+    },
+    {
+      "id": "manual-grouped-xbar",
+      "title": "Horizontal bars: two series around a common zero",
+      "source": "manual-grouped-xbar.tex"
+    },
+    {
+      "id": "manual-nonuniform-bar-intervals",
+      "title": "Unequal bins: five bars from six samples",
+      "source": "manual-nonuniform-bar-intervals.tex"
+    },
+    {
+      "id": "axis-sampled-log-ybar",
+      "title": "Reversed log scale: three bars and four observations",
+      "source": "axis-sampled-log-ybar.tex"
+    }
+  ]
+}

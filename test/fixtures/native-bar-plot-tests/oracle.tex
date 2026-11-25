@@ -1,0 +1,3 @@
+% Resolve PGF's corner-rounding marks on the saved copy, as pgfusepath does.
+\def\TracePreparePath{\pgfprocessround{\savedpath}{\savedpath}}
+\input{../native-smooth-plot-tests/oracle.tex}

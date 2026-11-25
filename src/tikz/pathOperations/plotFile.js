@@ -1,25 +1,15 @@
-import { evaluateMathResult, parseDimensionResult, substituteVariables } from "../../engine/math.js";
+import { evaluateMathResult, substituteVariables } from "../../engine/math.js";
 import { splitTopLevel } from "../../engine/options.js";
-import { pgfDimension } from "../../engine/pgf-fixed-point.js";
 import { MATH_EXPRESSION_LIMITS } from "../../engine/safe-expression.js";
-import { literalRegisterLengthCm } from "../../engine/units.js";
+import { pgfPointExpressionSource } from "../../engine/units.js";
 import { resolveDataFile, texDataFilename } from "../../frontend/data-files.js";
 
 const expansionLimit = { maxLength: MATH_EXPRESSION_LIMITS.characters };
-const ptPerCm = 72.27 / 2.54;
 
 function basisFactor(field, env) {
   // pgfpointxy math-parses each factor. A dimension contributes its numeric
   // TeX-point value *before* multiplication by the current x/y basis.
-  const text = substituteVariables(field, env.variables, expansionLimit);
-  const expression = text.replace(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:\s*(pt|cm|mm|in|bp|pc|em|ex|px)\b)?/g, (literal, unit) => {
-    if (!unit) return literal;
-    const cm = unit === "em" || unit === "ex" || unit === "px"
-      ? parseDimensionResult(literal, {}, { font: env.currentFont }).value
-      : literalRegisterLengthCm(literal);
-    return String(pgfDimension(cm * ptPerCm));
-  });
-  return evaluateMathResult(expression, env.variables).value;
+  return evaluateMathResult(pgfPointExpressionSource(field, env), env.variables).value;
 }
 
 export function tikzPlotFileRuns(segment, options, env, diagnostics) {

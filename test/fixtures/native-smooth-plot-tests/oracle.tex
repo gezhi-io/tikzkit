@@ -9,9 +9,12 @@
 \def\tracepath{%
   \begingroup
   \pgfsyssoftpath@getcurrentpath\savedpath
+  \ifdefined\TracePreparePath\TracePreparePath\fi
   \record{PATH}%
   \def\pgfsyssoftpath@movetotoken##1##2{\record{M \sppair{##1}{##2}}}%
   \def\pgfsyssoftpath@linetotoken##1##2{\record{L \sppair{##1}{##2}}}%
+  \def\pgfsyssoftpath@rectcornertoken##1##2{\edef\rectcorner{\sppair{##1}{##2}}}%
+  \def\pgfsyssoftpath@rectsizetoken##1##2{\record{R \rectcorner\space\sppair{##1}{##2}}}%
   \def\pgfsyssoftpath@curvetosupportatoken##1##2{\edef\controla{\sppair{##1}{##2}}}%
   \def\pgfsyssoftpath@curvetosupportbtoken##1##2{\edef\controlb{\sppair{##1}{##2}}}%
   \def\pgfsyssoftpath@curvetotoken##1##2{\record{C \controla\space\controlb\space\sppair{##1}{##2}}}%

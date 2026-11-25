@@ -124,6 +124,7 @@ export function parseTikz(source, options = {}) {
       coordinateSystems: globalCoordinateSystems,
       pgfMathMacros: globalPgfMath,
       pgfMathSeedsBefore,
+      plotZeroLevels: collectOuterPlotZeroLevels(outerSource),
       randomLists,
       libraries,
       packages,
@@ -225,6 +226,13 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\pgfmathtruncatemacro")) return parsePgfMathTruncate(text, diagnostics);
   if (text.startsWith("\\pgfmathdeclarerandomlist")) return parsePgfMathDeclareRandomList(text, diagnostics);
   if (text.startsWith("\\pgfmathrandomitem")) return parsePgfMathRandomItem(text, diagnostics);
+  const zeroLevel = /^\\pgfplot([xy])zerolevelstreamconstant\b/.exec(text);
+  if (zeroLevel) {
+    const dimension = extractBalanced(text, skipWhitespace(text, zeroLevel[0].length), "{", "}");
+    return dimension && !text.slice(dimension.end).trim()
+      ? { type: "plotZeroLevel", axis: zeroLevel[1], dimension: dimension.content, raw: text }
+      : unsupported(zeroLevel[0].slice(1), text, "Expected one constant plot baseline dimension");
+  }
   if (text.startsWith("\\pgfdeclarepatternformonly")) return parsePgfDeclarePatternFormOnly(text, diagnostics);
   if (text.startsWith("\\pgfdeclareplotmark")) {
     return parsePgfPlotMarkDeclaration(text)?.statement || unsupported(
@@ -739,6 +747,25 @@ function collectPgfMathSetSeeds(source) {
     }
   }
   return seeds;
+}
+
+function collectOuterPlotZeroLevels(source) {
+  if (!source.includes("zerolevelstreamconstant")) return undefined;
+  const levels = [{}];
+  // Retain a surrounding group if it still contains the selected picture;
+  // definitions and closed groups must not leak their local assignments.
+  if (source.includes("%")) source = stripTexComments(source);
+  const tokens = /\\pgfplot([xy])zerolevelstreamconstant\b|\\[a-zA-Z@]+|\\.|[{}]/g;
+  for (let t; (t = tokens.exec(source));) {
+    if (t[0] === "{" || t[0] === "\\begingroup" || t[0] === "\\bgroup") levels.push({ ...levels.at(-1) });
+    else if (t[0] === "}" || t[0] === "\\endgroup" || t[0] === "\\egroup") {
+      if (levels.length > 1) levels.pop();
+    } else if (t[1]) {
+      const value = extractBalanced(source, skipWhitespace(source, tokens.lastIndex), "{", "}");
+      if (value) { levels.at(-1)[t[1]] = value.content; tokens.lastIndex = value.end; }
+    }
+  }
+  return levels.at(-1);
 }
 
 function parsePgfMathDeclareRandomList(text) {
@@ -2405,6 +2432,7 @@ function isBraceTerminatedStatement(statement, source, end) {
     text.startsWith("\\pgfmathtruncatemacro") ||
     text.startsWith("\\pgfmathdeclarerandomlist") ||
     text.startsWith("\\pgfmathrandomitem") ||
+    /^\\pgfplot[xy]zerolevelstreamconstant\b/.test(text) ||
     text.startsWith("\\pgfdeclarepatternformonly") ||
     text.startsWith("\\pgfdeclareplotmark") ||
     text.startsWith("\\pgfplotsset") ||

@@ -1,6 +1,9 @@
 import { evaluateMath } from "../../engine/math.js";
 import { splitTopLevel, stripOuterBraces } from "../../engine/options.js";
 import { moveToCommand, lineToCommand, closePathCommand } from "../../engine/pathBuilder.js";
+import { pgfPointExpressionCm, pgfPointExpressionSource } from "../../engine/units.js";
+import { pgfDimension } from "../../engine/pgf-fixed-point.js";
+import { barPlotCommands, isBarPlotHandler } from "../../pgf/barPlot.js";
 import { smoothPlotCommands } from "../../pgf/smoothPlot.js";
 import { isStepPlotHandler, stepPlotCommands } from "../../pgf/stepPlot.js";
 import { expandForeachValues } from "../commands/foreach.js";
@@ -10,7 +13,7 @@ const handlers = new Set(["smooth", "smooth cycle", "sharp plot", "sharp cycle",
 export function tikzPlotHandler(options) {
   // These TikZ keys assign a handler, even when their optional value is false.
   let handler = "sharp plot";
-  for (const key of Object.keys(options)) if (handlers.has(key) || isStepPlotHandler(key)) handler = key;
+  for (const key of Object.keys(options)) if (handlers.has(key) || isStepPlotHandler(key) || isBarPlotHandler(key)) handler = key;
   return handler;
 }
 
@@ -50,10 +53,26 @@ export function tikzPlotPoints(segment, options, env, { coordinate, project }) {
   });
 }
 
-export function tikzPlotCommands(points, handler, options, env, connect, toCanvas) {
+export function tikzPlotCommands(points, handler, options, env, connect, toCanvas, specialRectangle) {
   if (!points.length || handler === "only marks") return [];
+  const horizontal = handler.startsWith("x");
+  const rawBaseline = env.plotZeroLevels?.[horizontal ? "x" : "y"];
+  const baseline = rawBaseline != null && (isBarPlotHandler(handler) || handler.endsWith("comb"))
+    ? pgfPointExpressionCm(rawBaseline, env) : 0;
+  if (!Number.isFinite(baseline)) return [];
+  if (isBarPlotHandler(handler)) {
+    const interval = handler.endsWith(" interval");
+    const parameter = (name, fallback) => {
+      const value = options[`bar ${interval ? "interval " : ""}${name}`] ?? fallback;
+      return interval ? pgfDimension(evaluateMath(pgfPointExpressionSource(value, env), env.variables))
+        : pgfPointExpressionCm(value, env);
+    };
+    const width = parameter("width", interval ? 1 : "10pt"), shift = parameter("shift", interval ? .5 : "0pt");
+    return Number.isFinite(width) && Number.isFinite(shift)
+      ? barPlotCommands(points, handler, { width, shift, baseline, special: specialRectangle }) : [];
+  }
   if (handler === "xcomb" || handler === "ycomb") {
-    return points.flatMap(p => [moveToCommand(handler === "xcomb" ? { x: 0, y: p.y } : { x: p.x, y: 0 }), lineToCommand(p)]);
+    return points.flatMap(p => [moveToCommand(horizontal ? { x: baseline, y: p.y } : { x: p.x, y: baseline }), lineToCommand(p)]);
   }
   const smooth = handler === "smooth" || handler === "smooth cycle";
   const closed = handler === "smooth cycle" || handler === "sharp cycle";

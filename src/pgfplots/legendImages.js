@@ -1,11 +1,9 @@
 import { parseDimension } from "../engine/math.js";
-import { normalizeOptions, parseOptions } from "../engine/options.js";
 import { createPlotMarkSelector } from "../pgf/plotMarkSelection.js";
-import { TIKZ_UNIT } from "../tikz/metrics.js";
 import { includePoint, includePathCommandBounds } from "../scene/bbox.js";
 import { basicPlotMarkGeometry, plotMarkGeometryCommands, plotMarkLocalOptions, transformPlotMarkCommands } from "../tikz/libraries/plotmarks.js";
 import { pgfplotsUsesAreaLegend } from "./areaPlots.js";
-import { barPlotStyle, selectPlotStyle } from "./plotStyle.js";
+import { barPlotStyle, plotStrokeWidthCm, selectPlotStyle } from "./plotStyle.js";
 import { filledPlotPaint } from "./filledPlotPaint.js";
 import { axisMarkRadius, shouldRenderPlotMarks } from "./marks.js";
 import { pgfplotsMarkSelectionLayers } from "./markSelection.js";
@@ -24,12 +22,7 @@ export function lineLegendMarkFractions(axis, plot, scopes, variables) {
 
 export function legendHalfPen(options, index, thick) {
   const style = selectPlotStyle(options, index) + (thick ? ",thick" : "");
-  return halfPenForStyle(style);
-}
-
-function halfPenForStyle(style) {
-  const pen = normalizeOptions("draw", parseOptions(style), { variables: {}, styles: {} }).style;
-  return pen.stroke === "none" ? 0 : pen.lineWidth / TIKZ_UNIT / 2;
+  return plotStrokeWidthCm(style) / 2;
 }
 
 export function includeLegendMark(bounds, options, center) {
@@ -55,7 +48,7 @@ export function filledLegendImage(axis, plot, index = 0, font, scopes = plot, va
   // The native legend puts the plot style on a scope, then starts a fresh
   // draw path inside it. Even a fill-only series gets the current pen here.
   const ink = filledPlotPaint(plot, axis, { legendDraw: true });
-  const halfPen = halfPenForStyle(ink.style);
+  const halfPen = plotStrokeWidthCm(ink.style) / 2;
   const rects = [];
   let marks = [];
   const rect = (x0, y0, x1, y1) => rects.push({

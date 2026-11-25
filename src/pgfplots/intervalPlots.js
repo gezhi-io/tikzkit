@@ -41,8 +41,8 @@ export function pgfplotsIntervalDataPoints(plot = {}, axisOptions = {}, orientat
 
 export function pgfplotsPlotRangePoints(plot = {}, axisOptions = {}, axis = "x") {
   const points = plot.points || [];
-  // Histogram survey replays real coordinates. Without the extra closing
-  // point even the last (unpainted) height still contributes to the limits.
-  if (plot.histogram || plot.pgfplotsStacked) return points;
+  // A surveyed stream includes the last observation even when it closes
+  // an interval and generates no rectangle of its own.
+  if (plot.source === "expression" || plot.histogram || plot.pgfplotsStacked) return points;
   return isPgfplotsIntervalPlot(axisOptions, plot.options, axis) ? points.slice(0, -1) : points;
 }

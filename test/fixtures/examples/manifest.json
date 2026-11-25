@@ -9090,6 +9090,41 @@
       "sourceCorpus": "TikZKit regression checked against native PGFPlots",
       "semanticOwner": "src/pgfplots/addplotLowering.js;src/pgf/stepPlot.js:stepPlotCommands",
       "features": ["sampled function", "const plot", "jump mark mid", "axis clipping"]
+    },
+    {
+      "id": "manual-signed-ybar",
+      "title": "Vertical bars: gains and losses at five observations",
+      "source": "bar-plots/manual-signed-ybar.tex",
+      "sourceCorpus": "Adapted from the TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:710-716",
+      "semanticOwner": "src/pgf/barPlot.js:barPlotCommands",
+      "features": ["ybar", "bar width", "bar shift", "negative values"]
+    },
+    {
+      "id": "manual-grouped-xbar",
+      "title": "Horizontal bars: two series around a common zero",
+      "source": "bar-plots/manual-grouped-xbar.tex",
+      "sourceCorpus": "Adapted from the TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:723-731",
+      "semanticOwner": "src/pgf/barPlot.js:barPlotCommands",
+      "features": ["xbar", "bar width", "bar shift"]
+    },
+    {
+      "id": "manual-nonuniform-bar-intervals",
+      "title": "Unequal bins: five bars from six samples",
+      "source": "bar-plots/manual-nonuniform-bar-intervals.tex",
+      "sourceCorpus": "Adapted from the TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:733-764",
+      "semanticOwner": "src/pgf/barPlot.js:barPlotCommands",
+      "features": ["ybar interval", "xbar interval", "bar interval width", "bar interval shift"]
+    },
+    {
+      "id": "axis-sampled-log-ybar",
+      "title": "Reversed log scale: three bars and four observations",
+      "source": "bar-plots/axis-sampled-log-ybar.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/bars.js;src/pgfplots/addplotLowering.js",
+      "features": ["sampled function", "ybar interval", "log axis", "reversed axis", "plot marks"]
     }
   ]
 }

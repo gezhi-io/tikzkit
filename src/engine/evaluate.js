@@ -126,6 +126,7 @@ import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
 import { createPlotMarkSelector } from "../pgf/plotMarkSelection.js";
 import { tikzPlotCommands, tikzPlotHandler, tikzPlotMarkName, tikzPlotPoints } from "../tikz/pathOperations/plot.js";
 import { isStepPlotHandler } from "../pgf/stepPlot.js";
+import { isBarPlotHandler } from "../pgf/barPlot.js";
 import { tikzPlotFileRuns } from "../tikz/pathOperations/plotFile.js";
 import { pathCornerInset, pathCornerMarks } from "./pathCornerMarks.js";
 import { resolveArrowActions, withoutArrowActions } from "../tikz/pathOperations/arrowActions.js";
@@ -381,6 +382,7 @@ export function interpretTikz(ast, options = {}) {
       randomLists: { ...(picture.randomLists || {}) },
       randomListCounters: {},
       pgfRandom: documentRandom,
+      plotZeroLevels: picture.plotZeroLevels,
       patterns: { ...(picture.patterns || ast.patterns || {}) },
       plotMarkDeclarations: { ...(picture.plotMarkDeclarations || ast.plotMarkDeclarations || {}) },
       dataFiles: ast.dataFiles ?? options.dataFiles,
@@ -1043,6 +1045,13 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
   if (statement.type === "pgfmathsetseed") {
     env.pgfRandom ||= createPgfRandom();
     env.pgfRandom.setSeed(evaluateMath(statement.expression, env.variables));
+    return;
+  }
+  if (statement.type === "plotZeroLevel") {
+    // PGF freezes expandable tokens here; the dimension (including em/ex)
+    // is read when a subsequent bar or comb asks its axis for a baseline.
+    env.plotZeroLevels = { ...env.plotZeroLevels,
+      [statement.axis]: substituteVariables(statement.dimension, env.variables) };
     return;
   }
   if (statement.type === "pgfmathsetlengthmacro") {
@@ -2676,6 +2685,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
           if (select()) addPlotMarkItems(point, mark, pathStyle, plot.options, env, shapes, foreground);
         }
       }
+      if (plot.barCornerInset !== undefined) cornerMarks.select(plot.barCornerInset);
       for (const command of plot.commands) {
         commands.push(command);
         if (command.type === "moveTo") {
@@ -2683,6 +2693,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
           startNodeRef = null;
         }
       }
+      if (plot.barCornerInset !== undefined) cornerMarks.select(pathCornerInset(actionOptions, env));
       // TikZ restores its last input point after the plot group. This is
       // distinct from the PDF pen after closing a cyclic path at sample two.
       current = relativeBase = currentBase = plot.lastPoint;
@@ -16471,7 +16482,9 @@ function buildPathPlot(segment, inherited, env, diagnostics, connect, saved) {
   const options = {};
   // A fully-qualified /tikz key writes the same plot register as the short key.
   for (const layer of [inherited, local]) for (const [key, value] of Object.entries(layer)) {
-    const name = key.replace(/^\/tikz\//, "");
+    const name = key.replace(/^\/tikz\//, "").replace(/^\/pgf\/(?=bar (?:interval )?(?:width|shift)$|at (?:begin|end) bar$)/, "");
+    if (name === "rounded corners") delete options["sharp corners"];
+    if (name === "sharp corners") delete options["rounded corners"];
     delete options[name];
     options[name] = value;
   }
@@ -16508,11 +16521,24 @@ function buildPathPlot(segment, inherited, env, diagnostics, connect, saved) {
   // Neither kind of break resets TikZ's independent marker replay.
   const samples = runs.length === 1 ? runs[0] : runs.flat();
   const toCanvas = p => applyTransform(p, matrix);
-  // PGF's const/jump handlers register no stream-jump action. Keep their
+  // PGF's step and bar handlers register no stream-jump action. Keep their
   // previous observation across blank lines and omitted points in a plot file.
-  const pathRuns = fileRuns && isStepPlotHandler(handler) ? [samples] : runs;
+  const bar = isBarPlotHandler(handler);
+  if (bar && samples.length > Number(handler.endsWith(" interval"))) {
+    for (const key of ["at begin bar", "at end bar"]) {
+      const hook = String(options[key] ?? "").trim();
+      if (hook && hook !== "\\relax") diagnostics.push({ severity: "warning", code: "tikz-bar-hook-unsupported",
+        message: "The /pgf/" + key + " callback is not executed; only the built-in bar geometry is drawn." });
+    }
+  }
+  const pathRuns = fileRuns && (isStepPlotHandler(handler) || bar) ? [samples] : runs;
+  const barCornerInset = bar ? pathCornerInset(options, plotEnv) : undefined;
+  // A backend canvas transform acts on the finished paint; only the PGF
+  // coordinate matrix (not a pure translation) selects its special rectangle.
+  const { a, b, c, d } = plotEnv.transform;
+  const specialRectangle = Boolean(barCornerInset || a !== 1 || b !== 0 || c !== 0 || d !== 1);
   const commands = mapPathCoordinates(pathRuns.flatMap((run, i) =>
-    tikzPlotCommands(run, handler, options, plotEnv, connect && (i === 0 || handler === "smooth"), toCanvas)), toCanvas);
+    tikzPlotCommands(run, handler, options, plotEnv, connect && (i === 0 || handler === "smooth"), toCanvas, specialRectangle)), toCanvas);
   // A transform inside plot[...] is local to the stream, not to a later ++.
   const last = samples.at(-1);
   const lastFileRow = fileRuns?.at(-1)?.at(-1);
@@ -16524,7 +16550,7 @@ function buildPathPlot(segment, inherited, env, diagnostics, connect, saved) {
   if (last && segment.kind === "plotCoordinates" && ["x", "y", "z"].some(key => Object.hasOwn(local, key))) {
     lastPoint = coordinate(segment.coordinates.at(-1), env, saved);
   }
-  return { commands, options, points: samples.map(toCanvas), lastPoint };
+  return { commands, options, points: samples.map(toCanvas), lastPoint, barCornerInset };
 }
 
 function sineCosineCurveCommand(from, to, op) {

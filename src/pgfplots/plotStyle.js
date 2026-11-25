@@ -1,3 +1,5 @@
+import { normalizeOptions, parseOptions } from "../engine/options.js";
+import { TIKZ_UNIT } from "../tikz/metrics.js";
 import { joinOptions } from "./format.js";
 
 // The pen and the marker fill are separate keys in PGFPlots' "color" list.
@@ -128,6 +130,11 @@ export function plotLineWidthOption(options = {}) {
   if (options["very thin"]) return "very thin";
   if (options["ultra thin"]) return "ultra thin";
   return "";
+}
+
+export function plotStrokeWidthCm(style) {
+  const pen = normalizeOptions("draw", parseOptions(style), { variables: {}, styles: {} }).style;
+  return pen.stroke === "none" ? 0 : pen.lineWidth / TIKZ_UNIT;
 }
 
 function pgfplotsMarkFillColor(color) {

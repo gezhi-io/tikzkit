@@ -329,6 +329,23 @@ For a change halfway between observations, use `const plot mark mid` or
 `jump mark mid`. For a level determined by the next observation, use the
 `mark right` variants. See the [sources and visual comparison](qa/2026-11-26-step-plots.md).
 
+## Bars and unequal bins
+
+In ordinary TikZ, use a fixed physical width for individual observations.
+For unequal bins, specify both bin edges: the last coordinate ends the final
+bin and does not add a bar.
+
+```tex
+\begin{tikzpicture}
+  \fill[blue] plot[ybar,bar width=6pt] coordinates {(0,1) (1,-.5) (2,1.4)};
+  \fill[red] plot[ybar interval,bar interval width=.5]
+    coordinates {(3,1) (4,.5) (6,0)};
+\end{tikzpicture}
+```
+
+Use `xbar` or `xbar interval` for horizontal bars. See the
+[four source examples and browser/native comparison](qa/2026-11-26-bar-plots.md).
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

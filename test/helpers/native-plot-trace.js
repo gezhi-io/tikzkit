@@ -26,7 +26,7 @@ function readOracle(source, trace) {
       else if (op === "BOX") boxPt = args[0] === "empty" ? null : numbers;
       else if (op === "SIZE") sizePt = numbers;
       else {
-        assert.equal(numbers.length, { M: 2, L: 2, C: 6, Z: 0 }[op], line);
+        assert.equal(numbers.length, { M: 2, L: 2, C: 6, Z: 0, R: 4 }[op], line);
         assert.ok(numbers.every(Number.isSafeInteger), line);
         paths.at(-1).push([op, ...numbers]);
       }
@@ -76,7 +76,18 @@ function assertBox(svg, { boxPt, sizePt }, id) {
   near(physicalPt, sizePt, .002, id + " typeset width/height in TeX pt");
 }
 
-export function nativePlotSuite(family, fixtureUrl, files = []) {
+export const traceToleranceSp = 4;
+
+export function assertTracePath(actual, expected, label) {
+  assert.deepEqual(actual.map(t => t[0]), expected.map(t => t[0]), label + " commands");
+  expected.forEach(([op, ...coords], j) => {
+    // Four sp allow for the scanned 1cm basis versus physical cm (up to 3cm
+    // in these pictures). This still distinguishes the legacy 0.445 shortcut.
+    near(actual[j].slice(1), coords, traceToleranceSp, `${label} command ${j + 1} ${op} in sp`);
+  });
+}
+
+export function nativePlotSuite(family, fixtureUrl, files = [], comparePath = assertTracePath) {
   const dir = fileURLToPath(fixtureUrl);
   const source = readFileSync(join(dir, "cases.tex"), "utf8");
   const trace = readFileSync(join(dir, "texlive-2025.trace"), "utf8");
@@ -86,19 +97,14 @@ export function nativePlotSuite(family, fixtureUrl, files = []) {
     test("native " + family + " plot: " + id, () => {
       const { diagnostics, ir, svg } = tikzToSvg(picture, { unit: svgUnitsPerCm, margin: 0, dataFiles });
       assert.deepEqual(diagnostics, [], id);
-      const actual = ir.items.filter(item => item.type === "path" && item.commands.length)
-        .map(item => item.commands.map(c => pathToken(c, spPerPhysicalCm)));
+      const actual = ir.items.filter(item => item.type === "path" && item.commands.length);
       const expected = oracle.get(id);
       const paths = expected.paths.filter(path => path.length);
       assert.equal(actual.length, paths.length, id + ": number of nonempty paths");
       paths.forEach((path, i) => {
         const label = `${id} path ${i + 1}`;
-        assert.deepEqual(actual[i].map(t => t[0]), path.map(t => t[0]), label + " commands");
-        path.forEach(([op, ...coords], j) => {
-          // Four sp allow for the scanned 1cm basis versus physical cm (up to 3cm
-          // in these pictures). This still distinguishes the legacy 0.445 shortcut.
-          near(actual[i][j].slice(1), coords, 4, `${label} command ${j + 1} ${op} in sp`);
-        });
+        comparePath(actual[i].commands.map(c => pathToken(c, spPerPhysicalCm)), path, label,
+          { id, item: actual[i], ir });
       });
       assertBox(svg, expected, id);
     });
