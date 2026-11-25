@@ -1,11 +1,13 @@
 import { flattenPath, pathLength, pointAtDistance } from "../../engine/geometry.js";
 import { evaluateMath } from "../../engine/math.js";
 import { unscaledTextFont } from "../../tex/fontSpec.js";
+import { layoutDecorationRun } from "../../tex/decorationBoxes.js";
 import { layoutNativeText } from "../../tex/textBox.js";
 import { mathFallbackText, normalizeTikzText, splitInlineMathSegments } from "../../tikz/text.js";
 import { estimateFormulaBox, measurePlainTextTeXBoxPt } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY, TIKZ_MATH_ITALIC_FONT_FAMILY } from "../../tikz/metrics.js";
 import { escapeAttribute, escapeText } from "./escape.js";
+import { renderDecorationBox } from "./decorationBox.js";
 import { formatSvgNumber as format } from "./format.js";
 import { renderUnitScale, textFontSizeForUnit } from "./layout.js";
 import { formatTextLine } from "./textLineContent.js";
@@ -13,12 +15,12 @@ import { scriptedMathFallback } from "./mathScriptFallback.js";
 import { svgPaint } from "./style.js";
 import { textFontScale } from "./textLayout.js";
 
-export function renderDecorationTextPath(item, unit) {
+export function renderDecorationTextPath(item, unit, outlineDefs) {
   const layout = layoutDecorationText(item, unit);
   if (!layout) return "";
   const { placements, color, fontFamily } = layout;
   return `<g class="tikz-decoration-text">${placements.map(placement =>
-    renderDecorationGlyph({ ...placement, unit, color, fontFamily })
+    renderDecorationGlyph({ ...placement, unit, color, fontFamily, item, outlineDefs })
   ).join("")}</g>`;
 }
 
@@ -72,15 +74,20 @@ function layoutDecorationText(item, unit) {
   if (item.pathTextReversePath) flat.reverse();
   const totalLength = pathLength(flat);
   if (flat.length < 2 || totalLength <= 1e-9) return null;
-  const color = escapeAttribute(normalized.color || item.style?.fill || "black");
+  const color = normalized.color || item.style?.fill || "black";
   const fontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
   const runs = Array.isArray(item.pathTextFormatRuns) && item.pathTextFormatRuns.length
     ? item.pathTextFormatRuns : [{ text: rawSourceLine }];
   const baseFont = unscaledTextFont(item.font || { sizePt: 10 * fontSize / textFontSizeForUnit(unit) });
-  let glyphs = formattedDecorationGlyphs(runs, { ...baseFont, family: fontFamily }, unit, fontSize, item.pathTextCharacterReplacements);
   const textEffects = Array.isArray(item.pathTextEffects) && item.pathTextEffects.length
     ? item.pathTextEffects
     : [item.pathTextReverse ? "reverse" : null, item.pathTextGroupLetters ? "group" : null].filter(Boolean);
+  // Text effects builds separate TikZ nodes (and can replace them with
+  // pictures); only ordinary PGF path text uses the TeX hbox scanner.
+  const useNativeBoxes = !item.pathTextUsesNodes && !textEffects.length
+    && item.pathTextCharactersAlongPath !== false && !Object.keys(item.pathTextCharacterReplacements || {}).length;
+  let glyphs = formattedDecorationGlyphs(runs, { ...baseFont, family: fontFamily }, unit, fontSize,
+    item.pathTextCharacterReplacements, useNativeBoxes);
   for (const effect of textEffects) {
     if (effect === "reverse") glyphs.reverse();
     if (effect === "group") glyphs = groupDecorationTextGlyphs(glyphs, item.pathTextWordSeparator);
@@ -149,7 +156,8 @@ function normalizedRepeatText(value) {
   return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
 }
 
-function renderDecorationGlyph({ glyph, x, y, angle, unit, color, fontFamily, fontSize, charactersAlongPath }) {
+function renderDecorationGlyph({ glyph, x, y, angle, unit, color, fontFamily, fontSize, charactersAlongPath, item, outlineDefs }) {
+  if (glyph.nativeBox) return renderDecorationBox(glyph, x, y, angle, fontSize, color, item, outlineDefs);
   if (glyph.text === " " && !glyph.replacement) return "";
   if (glyph.replacement?.type === "circle") return renderDecorationReplacementCircle(glyph.replacement, x, y, unit);
   const glyphFontSize = fontSize * glyph.fontScale;
@@ -209,10 +217,11 @@ function decorationTextFitShift(item, glyphs, totalLength, textLength) {
   if (extra < 0) return () => 0;
 
   if (item.pathTextFitToPathStretchingSpaces) {
-    const spaces = glyphs.filter((glyph) => glyph.text === " ").length;
+    const isSpace = glyph => glyph.stretchableSpace ?? (glyph.text === " ");
+    const spaces = glyphs.filter(isSpace).length;
     if (!spaces) return () => 0;
     const shift = extra / spaces;
-    return (glyph) => glyph.text === " " ? shift : 0;
+    return glyph => isSpace(glyph) ? shift : 0;
   }
 
   const gaps = glyphs.length - 1;
@@ -344,12 +353,22 @@ function decorationGlyphs(source, formattedLine, unit, fontSize, replacements = 
   return glyphs;
 }
 
-function formattedDecorationGlyphs(runs, baseFont, unit, fontSize, replacements = {}) {
+function formattedDecorationGlyphs(runs, baseFont, unit, fontSize, replacements = {}, useNativeBoxes = false) {
   const glyphs = [];
   for (const run of runs) {
     const scale = Number(run.fontScale) || 1;
     const font = { ...baseFont, sizePt: baseFont.sizePt * scale, family: run.fontFamily || baseFont.family,
-      style: run.fontStyle || baseFont.style, weight: run.fontWeight || baseFont.weight };
+      style: run.fontStyle || baseFont.style, weight: run.fontWeight || baseFont.weight,
+      mathVersion: run.mathVersion || baseFont.mathVersion };
+    const boxes = useNativeBoxes ? layoutDecorationRun(run.text, font) : null;
+    if (boxes) {
+      for (const { kind, text, tex, box } of boxes) {
+        glyphs.push({ kind: kind === "glyph" ? undefined : kind, text, nativeBox: box, nativeSizePt: font.sizePt,
+          advance: box.width / baseFont.sizePt, stretchableSpace: kind === "glyph" && text === " " && !tex,
+          fontScale: scale, normalOffset: 0, color: run.color || "" });
+      }
+      continue;
+    }
     const runGlyphs = decorationGlyphs(run.text, formatTextLine(run.text), unit, fontSize * scale, replacements);
     for (const glyph of runGlyphs) {
       glyphs.push({

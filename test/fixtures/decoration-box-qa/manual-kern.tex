@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (0,-.25) rectangle (4.5,1.2);
+  % The PGF manual's W{\kern-1ptA}TER: the kern is inside A's rigid box.
+  \path[decorate,decoration={text along path,text={W{\kern-1ptA}TER {office} {AV}}}]
+    (.15,.62) -- (4.2,.62);
+  \path[decorate,decoration={text along path,text={WATER office AV}}]
+    (.15,.02) -- (4.2,.02);
+\end{tikzpicture}
+\end{document}

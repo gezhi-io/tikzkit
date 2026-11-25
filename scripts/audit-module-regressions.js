@@ -95,16 +95,22 @@ try {
       });
       const failedFonts = await page.evaluate(() => [...document.fonts].filter(f => f.status === "error").map(f => f.family));
       assert.deepEqual(failedFonts, [], `${id}/${title}: failed browser fonts`);
-      const origins = await page.evaluate(frameColor => {
+      const origins = await page.evaluate(spec => {
+        const frameColor = spec?.color;
         const frame = frameColor ? [...document.querySelectorAll("path")]
           .find(p => !p.closest("defs") && getComputedStyle(p).stroke === frameColor) : document.querySelector("svg");
         if (!frame) throw new Error("Expected math audit frame");
         const box = frame.getBoundingClientRect();
-        return [...document.querySelectorAll('[data-math-layout="cm-tex-box"] text, .tikz-text-native text, use')].map(el => {
-          const p = new DOMPoint(Number(el.getAttribute("x")), Number(el.getAttribute("y"))).matrixTransform(el.getScreenCTM());
+        const selector = spec?.pathText ? ".tikz-decoration-text text:not([data-native-outline-text]), use" : '[data-math-layout="cm-tex-box"] text, .tikz-text-native text, use';
+        return [...document.querySelectorAll(selector)].map(el => {
+          // For path text, x/y may denote the baseline midpoint. Ask the
+          // browser for the actual glyph origin, including anchor and dx/dy.
+          const origin = spec?.pathText && el.localName === "text" ? el.getStartPositionOfChar(0)
+            : new DOMPoint(Number(el.getAttribute("x")), Number(el.getAttribute("y")));
+          const p = new DOMPoint(origin.x, origin.y).matrixTransform(el.getScreenCTM());
           return { x: p.x - box.x, y: p.y - box.y };
         });
-      }, entry.nativeGlyphFrame?.color);
+      }, entry.nativeGlyphFrame);
       const legendBackground = entry.nativeGlyphFrame?.backgroundColor ? await page.evaluate(spec => {
         const painted = [...document.querySelectorAll("path, rect")].filter(p => !p.closest("defs") &&
           getComputedStyle(p).fill === spec.backgroundColor);

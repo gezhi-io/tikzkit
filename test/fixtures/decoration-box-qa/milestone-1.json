@@ -1,0 +1,4 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": ["short-text", "initial-math-box", "manual-kern", "sloped-math", "manual-format", "format-math", "monospace", "manual-circle-lens", "nested-clip", "preview-clip-transform", "bounding-box-shorthand"]
+}

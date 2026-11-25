@@ -328,7 +328,7 @@ export function interpretTikz(ast, options = {}) {
     for (const expression of picture.pgfMathSeedsBefore || []) {
       documentRandom.setSeed(evaluateMath(expression, baseVariables));
     }
-    const pictureOptions = stripStyleDefinitionOptions(
+    const { "execute at begin picture": beginPicture, ...pictureOptions } = stripStyleDefinitionOptions(
       normalizeOptions("path", withImplicitStyleOption("every picture", picture.options || {}, styles), {
         variables: baseVariables,
         styles
@@ -396,6 +396,14 @@ export function interpretTikz(ast, options = {}) {
       if (pattern) env.patterns[pattern.name] = pattern;
     }
     const pictureStart = { itemCount: targetIr.items.length, backgroundItemCount: targetIr.backgroundItems.length };
+    // TikZ runs the opening hook inside the transformed picture scope. A clip
+    // or declared bounding box there must still be in effect for the body.
+    for (const code of optionList(beginPicture)) {
+      if (typeof code !== "string") continue;
+      for (const statement of parseStatements(code, diagnostics)) {
+        interpretStatement(statement, env, targetIr, diagnostics, options);
+      }
+    }
     for (const statement of picture.statements || []) {
       interpretStatement(statement, env, targetIr, diagnostics, options);
     }
@@ -16287,6 +16295,7 @@ function resolvedDecorationTextFormatRuns(runs = [], pathOptions = {}, baseFont 
       color: color ? normalizeColor(color) : null,
       fontFamily,
       fontScale: roundNumber(size / baseSize),
+      ...(font.mathVersion !== baseFont.mathVersion ? { mathVersion: font.mathVersion } : {}),
       fontStyle: font.style || "normal",
       fontWeight: Number(font.weight) || 400
     };

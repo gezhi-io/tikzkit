@@ -75,7 +75,10 @@ export function renderSvg(ir, options = {}) {
   // opaque ground, which the item renderer adds through the scene graph).
   const background = options.background === undefined ? "none" : options.background;
   body.push(renderSvgBackground(view, background));
-  const markup = renderWithScopeClips(items, scopeClips, (item, index) => renderItem(item, unit, options, index, pageOrigin));
+  const decorationOutlineDefs = new Map();
+  const renderOptions = { ...options, decorationOutlineDefs };
+  const markup = renderWithScopeClips(items, scopeClips, (item, index) => renderItem(item, unit, renderOptions, index, pageOrigin));
+  defs.push(...decorationOutlineDefs.values());
   body.push(graphicxResize ? wrapGraphicxResize(markup, naturalBounds, graphicxResize, unit) : markup);
   if (body.some((line) => line && line.includes("tikzkit-math-scope"))) {
     defs.unshift(renderScopedMathStyleDef());
@@ -84,7 +87,7 @@ export function renderSvg(ir, options = {}) {
     fontUrlPrefix: options.fontUrlPrefix,
     families: fontFamiliesInMarkup(body.join(""))
   }));
-  return renderSvgDocument(viewBox, body, defs, svgDocumentSize(view, unit));
+  return renderSvgDocument(viewBox, body, defs, svgDocumentSize(view, unit), { clipToPage: Boolean(sourceMargins) });
 }
 
 function sourceSvgMargins(value, unit) {
@@ -189,7 +192,7 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
   }
   if (item.type === "textNode") {
     if (item.subtype === "decoration-text" && Array.isArray(item.pathCommands) && item.pathCommands.length) {
-      return renderDecorationTextPath(item, unit, index);
+      return renderDecorationTextPath(item, unit, options.decorationOutlineDefs);
     }
     const normalized = normalizeTikzText(item.text, { ...options, mathMode: item.style?.mathMode });
     if (normalized.invisible) return "";

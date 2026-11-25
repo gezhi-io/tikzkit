@@ -22,6 +22,22 @@ function close(actual, expected) {
 
 const letters = items => items.map(item => item.char).join("");
 
+test("repeated Roman letters reuse font outlines and retain selectable text in both colors", () => {
+  const source = String.raw`\usetikzlibrary{decorations.text}
+    \begin{tikzpicture}
+      \path[decorate,decoration={text along path,text={AA}}] (0,0) -- (2,0);
+      \path[decorate,decoration={text along path,text color=red,text={A}}] (0,1) -- (2,1);
+    \end{tikzpicture}`;
+  const { svg, diagnostics } = tikzToSvg(source, { idPrefix: "sheet", mathRenderer: "svg-text" });
+  assert.deepEqual(diagnostics, []);
+  const paths = [...svg.matchAll(/<path id="(sheet-tikzkit-cmr10-[^"]+)" d="([^"]+)"/g)];
+  assert.equal(paths.length, 1);
+  assert.match(paths[0][2], /[Cc]/);
+  const uses = [...svg.matchAll(/<use href="#([^"]+)"[^>]+fill="([^"]+)"/g)];
+  assert.deepEqual(uses.map(m => [m[1], m[2]]), ["black", "black", "red"].map(color => [paths[0][1], color]));
+  assert.equal([...svg.matchAll(/<text [^>]*data-native-outline-text=""[^>]+fill-opacity="0"[^>]*>A<\/text>/g)].length, 3);
+});
+
 test("a grouped formula can start a path or follow another formula without losing adjacent glyphs", () => {
   for (const [source, expected] of [
     ["{$x$}B", ["math-box:x", "glyph:B"]],
@@ -111,6 +127,22 @@ test("alignment and fitting use the same formatted box widths and reserve the ri
     assert.equal(letters(items), "iWi");
     items.forEach(({ x }, i) => close(x, centers[i]));
   }
+});
+
+test("ordinary fit stretches a typed space but leaves a TeX control space at its natural width", () => {
+  const items = glyphs(String.raw`A\ B C`, "60pt", "text align={fit to path stretching spaces}");
+  assert.equal(letters(items), "ABC");
+  close(items[1].x, 14.37503); // 7.5pt A + 3.3333pt fixed space + half B
+  close(items[2].x, 56.38889);
+});
+
+test("an inline format switches the math version independently of the surrounding text weight", () => {
+  const source = String.raw`\begin{tikzpicture}\path[decorate,decoration={text along path,
+    text={|\bfseries|A{$x$}|\boldmath|B{$x$}}}] (0,0) -- (4,0);\end{tikzpicture}`;
+  const { svg, diagnostics } = tikzToSvg(source);
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual([...svg.matchAll(/<text [^>]*font-family="([^"]+)"[^>]*>([ABx])<\/text>/g)].map(m => m[1]),
+    ["TikZKitCMBX10", "TikZKitCMMI10", "TikZKitCMR10", "TikZKitCMMIB10"]);
 });
 
 test("overlong aligned text follows its decoration's native starting distance", () => {

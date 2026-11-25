@@ -25,12 +25,19 @@ function renderNativeBox(item, box, unit, color, metadata) {
   const baseline = anchor.y + (box.height - box.depth) * factor / 2;
   const contour = readContourColor(item.text);
   const outline = contour ? ` stroke="${escapeAttribute(svgPaint(contour))}" stroke-width="${format(1.4 / factor)}" paint-order="stroke fill" stroke-linejoin="round"` : "";
-  const children = box.items.map(part => {
+  const children = renderNativeBoxItems(box, color, outline);
+  // Preserve CM outlines instead of browser small-text stem darkening/hinting.
+  return `<g ${metadata} transform="translate(${format(x)} ${format(baseline)}) scale(${format(factor)})" text-anchor="start" dominant-baseline="alphabetic" text-rendering="geometricPrecision">${children}</g>`;
+}
+
+// Paint in TeX points relative to the box's left baseline, independent of
+// whether its caller positions a node or rotates the box along a path.
+export function renderNativeBoxItems(box, color, outline = "", paintGlyph) {
+  return box.items.map(part => {
     const fill = escapeAttribute(svgPaint(part.color || color || "black"));
     const position = `x="${format(part.x)}" y="${format(part.y)}"`;
     if (part.type === "rule") return `<rect ${position} width="${format(part.width)}" height="${format(part.height)}" fill="${fill}" />`;
-    return `<text${outline} ${position} fill="${fill}" font-family="${escapeAttribute(part.family)}" font-size="${format(part.size)}" font-style="${part.style}" font-weight="${part.weight || 400}">${escapeText(part.text)}</text>`;
+    const text = (attributes = "") => `<text${outline} ${position}${attributes} fill="${fill}" font-family="${escapeAttribute(part.family)}" font-size="${format(part.size)}" font-style="${part.style}" font-weight="${part.weight || 400}">${escapeText(part.text)}</text>`;
+    return paintGlyph ? paintGlyph(part, fill, text) : text();
   }).join("");
-  // Preserve CM outlines instead of browser small-text stem darkening/hinting.
-  return `<g ${metadata} transform="translate(${format(x)} ${format(baseline)}) scale(${format(factor)})" text-anchor="start" dominant-baseline="alphabetic" text-rendering="geometricPrecision">${children}</g>`;
 }

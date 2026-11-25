@@ -1269,6 +1269,7 @@ function isRepeatableOption(key) {
   return (
     key === "label" ||
     key === "pin" ||
+    key === "execute at begin picture" ||
     key === "general shadow" ||
     key === "evaluate" ||
     key === "declare function" ||

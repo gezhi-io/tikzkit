@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  % pgfmanual-en-library-decorations.tex, text along path / cumulative formats.
+  \draw[help lines] (0,0) grid (3,2);
+  \path[decorate,decoration={text along path,
+    text={a |\large|big |+\bf\color{red}|red|| juicy apple.}}]
+    (0,0) .. controls (0,2) and (3,0) .. (3,2);
+\end{tikzpicture}
+\end{document}

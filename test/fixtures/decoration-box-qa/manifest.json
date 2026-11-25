@@ -1,0 +1,15 @@
+{
+  "cases": [
+    {"id":"short-text","source":"../scoped-render-parity/short-text.tex","title":"One centimetre of Roman capitals","nativeGlyphFrame":{"pathText":true,"color":"rgb(198, 198, 198)","count":4}},
+    {"id":"initial-math-box","source":"../scoped-render-parity/initial-math-box.tex","title":"Roman text next to math italic","nativeGlyphFrame":{"pathText":true,"color":"rgb(198, 198, 198)","count":5}},
+    {"id":"manual-kern","source":"manual-kern.tex","title":"PGF manual: a kerned box and a rigid ligature","nativeGlyphFrame":{"pathText":true,"color":"rgb(210, 210, 210)","count":24}},
+    {"id":"sloped-math","source":"sloped-math.tex","title":"A fraction and linked scripts share the sloped baseline","nativeGlyphFrame":{"pathText":true,"color":"rgb(210, 210, 210)","count":9}},
+    {"id":"manual-format","source":"manual-format.tex","title":"PGF manual: cumulative formatting on a cubic path"},
+    {"id":"format-math","source":"format-math.tex","title":"Independent text and math weight; fixed and stretchable spaces","nativeGlyphFrame":{"pathText":true,"color":"rgb(210, 210, 210)","count":7}},
+    {"id":"monospace","source":"../scoped-render-parity/monospace.tex","title":"Typewriter optical metrics control","nativeGlyphFrame":{"pathText":true,"color":"rgb(198, 198, 198)","count":25}},
+    {"id":"manual-circle-lens","source":"../scoped-render-parity/manual-circle-lens.tex","title":"Standalone border around the PGF manual clipping example"},
+    {"id":"nested-clip","source":"../scoped-render-parity/nested-clip.tex","title":"Nested clipping with an unclipped sibling control"},
+    {"id":"preview-clip-transform","source":"preview-clip-transform.tex","title":"Preview border after transformed and clipped paint"},
+    {"id":"bounding-box-shorthand","source":"bounding-box-shorthand.tex","title":"Asymmetric standalone border with a frozen picture box"}
+  ]
+}

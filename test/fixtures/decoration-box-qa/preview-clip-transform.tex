@@ -1,0 +1,13 @@
+\documentclass{article}
+\usepackage{tikz}
+\usepackage[active,tightpage]{preview}
+\setlength{\PreviewBorder}{3pt}
+\begin{document}
+\begin{preview}
+\begin{tikzpicture}[shift={(2,-1)},rotate=90,xscale=2]
+  \fill[blue] (-6pt,2pt) rectangle (-2pt,8pt);
+  \clip (0pt,0pt) rectangle (18pt,16pt);
+  \fill[red] (-25pt,-25pt) rectangle (35pt,35pt);
+\end{tikzpicture}
+\end{preview}
+\end{document}

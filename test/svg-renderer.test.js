@@ -1489,10 +1489,15 @@ test("places braced inline decoration math as one TeX box with a lowered script"
     ]
   });
   const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
-  const box = svg.match(/class="tikz-decoration-math-box" x="([^"]+)" y="([^"]+)"[^>]+font-family="TikZKitMath_Math[^>]+font-style="italic"[^>]*>a<tspan font-size="([^"]+)" baseline-shift="sub">k<\/tspan><\/text>/);
-
-  assert.ok(box, "expected a single math italic decoration box for the braced formula");
-  assert.ok(Number(box[3]) < 30, `expected a smaller script font, got ${box[3]}`);
+  const box = svg.match(/<g class="tikz-decoration-math-box"[^>]*>(.*?)<\/g>/)?.[1];
+  assert.ok(box, "the whole formula should rotate around a single baseline midpoint");
+  // TeX selects cmmi7 for the subscript in a 10pt text-style formula.
+  // A browser-relative baseline-shift cannot reproduce TeX's script origin.
+  assert.match(box, /<text x="0" y="0"[^>]*font-family="TikZKitCMMI10" font-size="10"[^>]*>a<\/text>/);
+  const sub = box.match(/<text x="([^"]+)" y="([^"]+)"[^>]*font-family="TikZKitCMMI7" font-size="7"[^>]*>k<\/text>/);
+  assert.ok(sub);
+  assert.ok(Math.abs(Number(sub[1]) - 5.28589) < .001);
+  assert.ok(Math.abs(Number(sub[2]) - 1.5) < .001);
   assert.equal((svg.match(/class="tikz-decoration-math-box"/g) || []).length, 1);
   assert.doesNotMatch(svg, />ₖ<\/text>/);
 });

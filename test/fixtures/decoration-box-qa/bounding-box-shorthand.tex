@@ -1,0 +1,7 @@
+\documentclass[border={2pt 3pt 5pt 7pt}]{standalone}
+\usepackage{tikz}
+\begin{document}
+\tikz[xscale=1.5,yscale=2,execute at begin picture={
+  \path[use as bounding box] (-6pt,-4pt) rectangle (14pt,6pt);
+}] \fill[blue] (0pt,0pt) rectangle (18pt,10pt);
+\end{document}

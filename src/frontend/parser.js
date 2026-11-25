@@ -2760,6 +2760,9 @@ function collectTikzsetDirectOptions(source) {
     }
     index += 1;
   }
+  // TikZ clears its opening hook before applying every picture and the local
+  // options. A bare earlier \tikzset cannot queue code for the next picture.
+  delete options["execute at begin picture"];
   return options;
 }
 

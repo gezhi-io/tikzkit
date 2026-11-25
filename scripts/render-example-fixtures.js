@@ -28,6 +28,7 @@ const TEXLIVE_OPENTYPE_FONT_DIRS = [
 ];
 const MANAGED_TIKZKIT_FONT_FILES = [...new Set(fontManifest.flatMap((font) => [font.file, font.license]))];
 const TEX_PT_PER_CM = 28.4527559;
+const PREVIEW_BORDER_ASSIGNMENT = /\\setlength\s*(?:\{\s*\\PreviewBorder\s*\}|\\PreviewBorder)\s*\{([^{}]+)\}/;
 const TIKZTOSVG_BUILT_IN_PACKAGES = new Set(["amsmath", "amssymb", "pgfplots", "tikz", "tikz-cd", "xcolor"]);
 const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
   "bchart",
@@ -1033,7 +1034,7 @@ export function normalizeTikztosvgInput(source, options = {}) {
     .filter((line) => !/^\\documentclass\b/.test(line.trim()))
     .filter((line) => !/^\\usepackage\b/.test(line.trim()))
     .filter((line) => !/^\\(?:usetikzlibrary|usepgfplotslibrary)\b/.test(line.trim()))
-    .filter((line) => !/^\\setlength\\PreviewBorder\b/.test(line.trim()))
+    .map((line) => line.replace(PREVIEW_BORDER_ASSIGNMENT, ""))
     .filter((line) => !/^\\begin\{document\}\s*$/.test(line.trim()))
     .filter((line) => !/^\\end\{document\}\s*$/.test(line.trim()))
     .filter((line) => !/^\\usetkzobj\{[^}]*\}\s*$/.test(line.trim()))
@@ -1083,7 +1084,7 @@ function tikztosvgPreambleBody(source, { includeLibraries = false } = {}) {
     .filter((line) => !/^\s*\\documentclass\b/.test(line))
     .filter((line) => !/^\s*\\usepackage\b/.test(line))
     .filter((line) => includeLibraries || !/^\s*\\(?:usetikzlibrary|usepgfplotslibrary)\b/.test(line))
-    .filter((line) => !/^\s*\\setlength\s*\\PreviewBorder\b/.test(line))
+    .map((line) => line.replace(PREVIEW_BORDER_ASSIGNMENT, ""))
     .join("\n")
     .trim();
 }
@@ -1129,22 +1130,21 @@ function wrapStandaloneChronology(body) {
   ].join("\n");
 }
 
-// tikztosvg deliberately crops an extracted picture to its painted bounds.
-// Documents using standalone's `border` option or preview's PreviewBorder
-// instead define an explicit output box. Preserve that document-level crop
-// contract in the disposable reference source so its SVG can be compared with
-// both MacTeX and TikZKit without a false all-edge offset. PreviewBorder is a
-// page-space dimension, so reset the picture CTM before applying it; otherwise
-// a picture-level scale or rotation also transforms the document margin.
+// standalone's \sa@handlebox and preview's tightpage hook pad the finished
+// TeX box. A clip or use-as-bounding-box path freezes PGF's picture bounds
+// for the rest of its scope. Only the unpainted margin path should resume
+// tracking, in page coordinates, after the source's own end-picture drawing.
 function applyTikztosvgDocumentCropBorder(body, border) {
   if (!border) return body;
   const boundingBoxPath = [
     "\\begin{scope}[reset cm]",
+    "\\tikzset{overlay=false}",
     "\\path[use as bounding box]",
     `  ([xshift=-${border.left},yshift=-${border.bottom}]current bounding box.south west)`,
     `  rectangle ([xshift=${border.right},yshift=${border.top}]current bounding box.north east);`,
     "\\end{scope}"
   ].join("\n");
+  const endPictureHook = `execute at end picture={${boundingBoxPath}}`;
 
   // A source can define a command containing an inner tikzpicture. The crop
   // path is executable TikZ, so it belongs only in an actual top-level picture
@@ -1174,7 +1174,8 @@ function applyTikztosvgDocumentCropBorder(body, border) {
     }
 
     if (braceDepth === 0 && topLevelPictures > 0 && text.startsWith(endPicture, cursor)) {
-      result += `${boundingBoxPath}\n${endPicture}`;
+      if (topLevelPictures === 1) result += `\\tikzset{${endPictureHook}}\n`;
+      result += endPicture;
       topLevelPictures -= 1;
       cursor += endPicture.length;
       continue;
@@ -1187,7 +1188,7 @@ function applyTikztosvgDocumentCropBorder(body, border) {
       let after = cursor + 5;
       while (/\s/.test(text[after] || "")) after++;
       const options = extractBalanced(text, after, "[", "]");
-      result += `\\tikz[${options ? `${options.content},` : ""}execute at end picture={${boundingBoxPath}}]`;
+      result += `\\tikz[${options ? `${options.content},` : ""}${endPictureHook}]`;
       cursor = options?.end ?? after;
       continue;
     }
@@ -1204,9 +1205,7 @@ function applyTikztosvgDocumentCropBorder(body, border) {
 
 function tikztosvgDocumentCropBorder(source) {
   const text = String(source || "");
-  const preview = text.match(
-    /\\setlength\s*(?:\{\s*\\PreviewBorder\s*\}|\\PreviewBorder)\s*\{([^{}]+)\}/
-  );
+  const preview = text.match(PREVIEW_BORDER_ASSIGNMENT);
   if (preview?.[1]?.trim()) return tikztosvgUniformBorder(preview[1].trim());
 
   const documentClass = text.match(/\\documentclass\s*(?:\[([^\]]*)\])?\s*\{\s*standalone\s*\}/i);

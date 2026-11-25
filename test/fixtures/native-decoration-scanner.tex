@@ -1,0 +1,42 @@
+% pdflatex -interaction=nonstopmode -halt-on-error native-decoration-scanner.tex
+% The installed PGF scanner, not the JavaScript implementation, supplies the boxes.
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\makeatletter
+\newcommand\Probe[3][]{\begingroup
+  #1\relax
+  \def\probename{#2}\def\pgfdecorationrestoftext{#3}%
+  \pgf@lib@decorate@textmathmodefalse
+  \nextbox\endgroup}
+\def\nextbox{%
+  \pgf@lib@dec@text@scanchar
+  \ifvoid\pgf@lib@dec@text@box\else
+    \typeout{BOX \probename:
+      \the\wd\pgf@lib@dec@text@box,
+      \the\ht\pgf@lib@dec@text@box,
+      \the\dp\pgf@lib@dec@text@box,
+      \ifpgf@lib@dec@text@scan@space space\else other\fi}%
+    \expandafter\nextbox
+  \fi}
+\makeatother
+\begin{document}
+\Probe{letters}{AVffi{AV}{ffi}{office}{To}!}
+\Probe{pair}{{AV}{ffi}}
+\Probe{saved-tail}{X{AV}{ffi}}
+\Probe{group-boundaries}{A{}{f{f}i}{AV }{ AV}{. A}!}
+\Probe{spaces}{ A   \ \ \space   B\  C }
+\Probe{group-spaces}{{a.\space b}{a.\ b}{a. b}{\ \ \space }!}
+\Probe{nested-spaces}{{{a.} b}{{A}. b}{a.\kern1pt b}!}
+\Probe{manual-kern}{W{\kern-1ptA}TER}
+\Probe{inline}{Z$a+b$Q}
+\Probe{math-groups}{$x{^y_i}{\times}{ab}$}
+\Probe{math-spaces}{$a b\ c\space d$}
+\Probe{structures}{{$\frac{1}{2}$}{$x_i^2$}{$\sqrt{x}$}!}
+\Probe{mixed}{{AV $x_i$ To}{$x$ and $y$}{x{$a+b$}y}!}
+\Probe[\scriptsize\ttfamily]{tt7}{i{ffi} {$x_i$}}
+\Probe[\scriptsize\ttfamily]{tt7-space}{$a\ b$}
+\Probe[\scriptsize\ttfamily]{math-box-spaces}{{$a\space b$}{$a\ b$}{$\frac{a\ b}{c}$}!}
+\Probe[\spaceskip=8pt\relax]{fixed-spaces}{a \ {$a\ b$}}
+\Probe[\large\bfseries\boldmath]{bold12}{{AV}{$x_i$}}
+\end{document}

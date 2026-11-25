@@ -41,7 +41,7 @@ export function renderSvgBackground(view, background) {
   )}" fill="${escapeAttribute(String(background))}" />`;
 }
 
-export function renderSvgDocument(viewBox, body = [], defs = [], size = null) {
+export function renderSvgDocument(viewBox, body = [], defs = [], size = null, { clipToPage = false } = {}) {
   const content = [];
   if (defs.length) content.push(createSvgDefs(defs));
   content.push(...body);
@@ -50,7 +50,10 @@ export function renderSvgDocument(viewBox, body = [], defs = [], size = null) {
     // rounding changes its aspect ratio and rescales text at browser zoom.
     ? ` width="${format(size.widthPt)}pt" height="${format(size.heightPt)}pt"`
     : "";
-  return `<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${sizeAttributes} viewBox="${viewBox}">\n${content
+  // A PDF page crops overflow at its physical edge, including a fractional
+  // last pixel. A TikZ bounding-box path itself does not clip the ink.
+  const overflow = clipToPage ? ' overflow="hidden"' : "";
+  return `<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${overflow}${sizeAttributes} viewBox="${viewBox}">\n${content
     .filter(Boolean)
     .map((line) => `  ${line}`)
     .join("\n")}\n</svg>\n`;
