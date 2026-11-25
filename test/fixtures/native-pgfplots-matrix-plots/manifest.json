@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"matrix-manual-explicit-hole","title":"Explicit colors: an empty center and a painted white corner","source":"matrix-manual-explicit-hole.tex","manualLines":[3780,3797]},
+    {"id":"matrix-manual-nan-colorbar","title":"Numeric meta: nan center and a native colorbar","source":"matrix-manual-nan-colorbar.tex","manualLines":[3758,3772]},
+    {"id":"matrix-manual-table","title":"Original nine-row table: scanline width and automatic cell limits","source":"matrix-manual-table.tex","manualLines":[3692,3712]},
+    {"id":"matrix-manual-starred","title":"Starred matrix: upright axis and explicit axis on top","source":"matrix-manual-starred.tex","manualLines":[3886,3899]},
+    {"id":"matrix-manual-skewed","title":"Nonuniform scanlines: skewed cells and extrapolated corners","source":"matrix-manual-skewed.tex","manualLines":[3830,3851]}
+  ]
+}

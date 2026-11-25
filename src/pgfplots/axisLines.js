@@ -31,6 +31,11 @@ export function renderAxisBounds(geometry) {
   })} -- cycle;`;
 }
 
+export function hasReversed2DFrame(axisOptions, geometry) {
+  return !geometry.is3d && !axisOptions["datavis axis label placement"] &&
+    (geometry.axisDirections?.x === -1 || geometry.axisDirections?.y === -1);
+}
+
 export function renderAxisBox(axisOptions = {}, geometry = {}) {
   if (!shouldRenderAxisBox(axisOptions)) return "";
   const min = geometry.origin;
@@ -45,34 +50,24 @@ export function renderAxisBox(axisOptions = {}, geometry = {}) {
       : plotLineWidthOption(axisOptions) || "line width=0.4pt",
     ...axisLineStyleFragments(axisOptions["axis line style"])
   ]);
-  const xMode = pgfplotsAxisHidden(axisOptions, "x") ? "none" : specificAxisLineMode(axisOptions, "x");
-  const yMode = pgfplotsAxisHidden(axisOptions, "y") ? "none" : specificAxisLineMode(axisOptions, "y");
-  if (!xMode && !yMode) {
-    // Native cycledpath travels southwest -> northwest -> northeast ->
-    // southeast. Reversing a closed outline changes its dash phase.
-    return `\\draw[${frameStyle}] ${formatAxisPoint({
-      x: min.x,
-      y: min.y
-    })} -- ${formatAxisPoint({
-      x: min.x,
-      y: max.y
-    })} -- ${formatAxisPoint({
-      x: max.x,
-      y: max.y
-    })} -- ${formatAxisPoint({
-      x: max.x,
-      y: min.y
-    })} -- cycle;`;
+  const reversed = hasReversed2DFrame(axisOptions, geometry);
+  const [x0, x1] = reversed && geometry.axisDirections.x === -1 ? [max.x, min.x] : [min.x, max.x];
+  const [y0, y1] = reversed && geometry.axisDirections.y === -1 ? [max.y, min.y] : [min.y, max.y];
+  const xMode = specificAxisLineMode(axisOptions, "x"), yMode = specificAxisLineMode(axisOptions, "y");
+  const hideX = pgfplotsAxisHidden(axisOptions, "x"), hideY = pgfplotsAxisHidden(axisOptions, "y");
+  const full = mode => !mode || (reversed && mode === "box");
+  if (full(xMode) && full(yMode) && (reversed || (!hideX && !hideY))) {
+    // PGF starts its closed path at projected (xmin,ymin), even for dashed or reversed axes.
+    const [a, b, c, d] = [{ x:x0, y:y0 }, { x:x0, y:y1 }, { x:x1, y:y1 }, { x:x1, y:y0 }];
+    if (hideX) return `\\draw[${frameStyle}] ${axisFrameSegment(a, b)} ${axisFrameSegment(c, d)};`;
+    if (hideY) return `\\draw[${frameStyle}] ${axisFrameSegment(b, c)} ${axisFrameSegment(d, a)};`;
+    return `\\draw[${frameStyle}] ${[a, b, c, d].map(formatAxisPoint).join(" -- ")} -- cycle;`;
   }
-  const segments = [];
-  if (xMode !== "none") {
-    if (!xMode || xMode === "bottom") segments.push(axisFrameSegment({ x: min.x, y: min.y }, { x: max.x, y: min.y }));
-    if (!xMode || xMode === "top") segments.push(axisFrameSegment({ x: min.x, y: max.y }, { x: max.x, y: max.y }));
-  }
-  if (yMode !== "none") {
-    if (!yMode || yMode === "left") segments.push(axisFrameSegment({ x: min.x, y: min.y }, { x: min.x, y: max.y }));
-    if (!yMode || yMode === "right") segments.push(axisFrameSegment({ x: max.x, y: min.y }, { x: max.x, y: max.y }));
-  }
+  // Each separate edge starts at the lower data value along its own axis.
+  const ys = hideX ? [] : full(xMode) ? [y0, y1] : xMode === "bottom" ? [min.y] : xMode === "top" ? [max.y] : [];
+  const xs = hideY ? [] : full(yMode) ? [x0, x1] : yMode === "left" ? [min.x] : yMode === "right" ? [max.x] : [];
+  const segments = [...ys.map(y => axisFrameSegment({ x:x0, y }, { x:x1, y })),
+    ...xs.map(x => axisFrameSegment({ x, y:y0 }, { x, y:y1 }))];
   return segments.length ? `\\draw[${frameStyle}] ${segments.join(" ")};` : "";
 }
 
@@ -88,8 +83,9 @@ export function shouldRenderAxisBox(axisOptions = {}) {
 export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
   const spanRanges = geometry.lineRanges || geometry.transformRanges || ranges;
   const finalRanges = geometry.transformRanges || ranges;
-  const yAxis = axisLineBase(axisOptions, "x", "y", finalRanges);
-  const xAxis = axisLineBase(axisOptions, "y", "x", finalRanges);
+  const dirs = hasReversed2DFrame(axisOptions, geometry) ? geometry.axisDirections : {};
+  const yAxis = axisLineBase(axisOptions, "x", "y", finalRanges, dirs.y === -1);
+  const xAxis = axisLineBase(axisOptions, "y", "x", finalRanges, dirs.x === -1);
   const yLineRange = axisLineRange(axisOptions, "y", spanRanges, ranges);
   const padding = parseAxisSchoolBookPadding(axisOptions);
   const globalStyle = axisLineStyleFragments(axisOptions["axis line style"]);
@@ -117,10 +113,11 @@ export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
   return commands;
 }
 
-function axisLineBase(axisOptions, direction, normal, ranges) {
+function axisLineBase(axisOptions, direction, normal, ranges, reversed) {
   const mode = specificAxisLineMode(axisOptions, direction) || String(axisOptions["axis lines"] ?? axisOptions.axis ?? "middle");
-  if (["left", "bottom"].includes(mode)) return ranges[`${normal}Min`];
-  if (["right", "top"].includes(mode)) return ranges[`${normal}Max`];
+  // Named sides are physical; only the coordinate perpendicular to the line changes.
+  if (["left", "bottom"].includes(mode)) return ranges[normal + (reversed ? "Max" : "Min")];
+  if (["right", "top"].includes(mode)) return ranges[normal + (reversed ? "Min" : "Max")];
   return axisZeroValue(ranges, normal);
 }
 

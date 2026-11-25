@@ -1039,6 +1039,14 @@ function axis3DLabelVisualOptions(style = {}) {
 
 export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
   if (!axisColorbarEnabled(axisOptions)) return [];
+  const bounds = axis3DProjectedBounds(ranges, geometry);
+  const parentBounds = axis3DParentBounds(axisOptions, ranges, geometry);
+  return renderColorbarInBounds(axisOptions, { ...ranges, ...(axisOptions["pgfplots surveyed color range"] || {}) },
+    bounds, parentBounds, { projected3D: geometry });
+}
+
+export function renderColorbarInBounds(axisOptions, colorRanges, bounds, parentBounds, { projected3D, outerBounds, planTicks } = {}) {
+  if (!axisColorbarEnabled(axisOptions)) return [];
   const orientation = colorbarOrientation(axisOptions);
   const styleOptions = parseColorbarStyle(axisOptions["colorbar style"]);
   const tickFont = pgfplotsRoleFontCommand(
@@ -1046,10 +1054,8 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
     axisOptions,
     fontFromStyle(styleOptions["tick label style"]) || styleOptions["tick label font"]
   );
-  const bounds = axis3DProjectedBounds(ranges, geometry);
-  const parentBounds = axis3DParentBounds(axisOptions, ranges, geometry);
-  const parentWidth = bounds.width || geometry.width || 1;
-  const parentHeight = bounds.height || geometry.height || 1;
+  const parentWidth = bounds.width || projected3D?.width || 1;
+  const parentHeight = bounds.height || projected3D?.height || 1;
   const width = colorbarDimension(
     styleOptions.width ?? (orientation === "horizontal" ? undefined : axisOptions["colorbar/width"]),
     orientation === "horizontal" ? parentWidth : 0.5,
@@ -1060,28 +1066,28 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
     orientation === "horizontal" ? 0.5 : parentHeight,
     parentHeight
   );
-  const box = colorbarBox(styleOptions, bounds, parentBounds, width, height, orientation);
+  const box = colorbarBox(styleOptions, bounds, outerBounds?.(styleOptions, orientation) ?? parentBounds, width, height, orientation);
   const { xMin, xMax, yMin, yMax } = box;
-  const colorRanges = { ...ranges, ...(axisOptions["pgfplots surveyed color range"] || {}) };
   const commands = [];
   const gradientStops = colorbarGradientStops(colorRanges, axisOptions);
-  const gradientAngle = orientation === "horizontal" ? 270 : 0;
+  const horizontal = orientation === "horizontal";
+  const reverse = !projected3D && styleOptions[horizontal ? "x dir" : "y dir"] === "reverse";
+  const gradientAngle = horizontal ? (reverse ? 90 : 270) : (reverse ? 180 : 0);
   commands.push(
     `\\draw[axis colorbar, draw=none, shading=axis, shading angle=${gradientAngle}, tikzkit axis stops={${gradientStops}}, line width=0pt] ${formatAxisPoint({ x: xMin, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMax })} -- ${formatAxisPoint({ x: xMin, y: yMax })} -- cycle;`
   );
   commands.push(
     `\\draw[axis colorbar frame, black, line width=0.4pt] ${formatAxisPoint({ x: xMin, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMax })} -- ${formatAxisPoint({ x: xMin, y: yMax })} -- cycle;`
   );
-  const ticks = colorbarTickValues(
+  const ticks = projected3D ? colorbarTickValues(
     orientation === "horizontal" ? styleOptions.xtick : styleOptions.ytick,
     colorRanges,
     orientation === "horizontal" ? width : height,
     styleOptions
-  );
+  ) : planTicks?.(styleOptions, orientation, width, height);
   // PGFPlots creates a separate 2D axis for the colorbar. Reuse its tick
   // placement, number formatting and TeX boxes instead of approximating
   // outward ticks and measuring the title with the surface-label renderer.
-  const horizontal = orientation === "horizontal";
   const barOptions = {
     "axis lines": "box", "scale only axis": true, enlargelimits: false,
     "pgfplots compat": axisOptions["pgfplots compat"] ?? axisOptions.compat,
@@ -1092,8 +1098,8 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
     "scaled ticks": axisOptions["scaled ticks"],
     ...styleOptions,
     width: `${width}cm`, height: `${height}cm`, at: `{(${xMin},${yMin})}`,
-    xtick: horizontal ? `{${ticks.join(",")}}` : "\\empty",
-    ytick: horizontal ? "\\empty" : `{${ticks.join(",")}}`
+    xtick: horizontal ? (ticks ? `{${ticks.join(",")}}` : styleOptions.xtick) : "\\empty",
+    ytick: horizontal ? "\\empty" : (ticks ? `{${ticks.join(",")}}` : styleOptions.ytick)
   };
   const barRanges = horizontal
     ? { xMin: colorRanges.zMin, xMax: colorRanges.zMax, yMin: 0, yMax: 1 }

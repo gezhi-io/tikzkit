@@ -1,4 +1,4 @@
-import { parseOptions, splitTopLevel } from "../engine/options.js";
+import { parseOptions, splitTopLevel, stripTexComments } from "../engine/options.js";
 import { axisNumber, parseCoordinateList, parsePgfplotsPointMeta, setExplicitPointError } from "./coordinates.js";
 import { parsePgfplotsDateCoordinate } from "./dateCoordinates.js";
 import { sampleRawGnuplotAddplot } from "./gnuplot.js";
@@ -51,13 +51,15 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
       cursor = skipWhitespace(body, cursor);
       const coords = extractBalanced(body, cursor, "{", "}");
       if (coords) {
-        const points = parseCoordinateList(coords.content, plotOptions, diagnostics);
+        const points = parseCoordinateList(coords.content,
+          { ...options.pgfplotsStyleOptions, ...options.pgfplotsAxisOptions, ...plotOptions }, diagnostics);
         plots.push({
           type: "coordinates",
           is3d,
           options: plotOptions,
           points,
           coordinateRows: points.rows || [points],
+          ...(points.rows?.invalid && { invalidCoordinateSource: true }),
           nodes: parseAddplotInlineNodes(body.slice(coords.end, statementEnd === -1 ? body.length : statementEnd), options),
           closedCycle
         });
@@ -73,13 +75,23 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
       const table = extractBalanced(body, cursor, "{", "}");
       if (table) {
         const tableText = resolvePgfplotsTableContent(table.content, options, diagnostics);
+        const pointOptions = { ...options.pgfplotsStyleOptions, ...options.pgfplotsAxisOptions, ...plotOptions };
+        const selectors = {};
+        for (const [key, value] of Object.entries(pointOptions)) {
+          const name = key.match(/^(?:\/pgfplots\/)?table\/(.+)$/);
+          if (name) selectors[name[1]] = value;
+        }
+        for (const [key, value] of Object.entries(parsedTableOptions)) selectors[key.replace(/^\/pgfplots\/table\//, "")] = value;
+        const points = parsePgfplotsTablePoints(tableText, selectors, diagnostics, pointOptions, options);
         plots.push({
           type: "coordinates",
           source: "table",
           is3d,
           options: plotOptions,
           tableOptions: parsedTableOptions,
-          points: parsePgfplotsTablePoints(tableText, parsedTableOptions, diagnostics, plotOptions, options),
+          points,
+          ...(points.invalidCoordinateSource && { invalidCoordinateSource: true }),
+          ...(!is3d && points.rows?.length > 1 && { coordinateRows: points.rows }),
           nodes: parseAddplotInlineNodes(body.slice(table.end, statementEnd === -1 ? body.length : statementEnd), options),
           closedCycle
         });
@@ -271,12 +283,18 @@ export function parsePgfplotsTablePoints(content, tableOptions = {}, diagnostics
   if (xIndex < 0 || yIndex < 0) return [];
   const zIndex = selectColumn("z", 2);
   const metaColumn = pgfplotsPointMetaColumn(plotOptions, tableOptions);
-  const metaIndex = tableOptions.meta || tableOptions["meta index"] !== undefined
+  const selectedMeta = tableOptions.meta || String(tableOptions["meta index"] ?? "").trim() !== "";
+  const metaIndex = selectedMeta
     ? selectColumn("meta", -1) : pgfplotsHeaderIndex(headers, metaColumn, -1);
   const errorColumns = explicitErrorColumns(tableOptions, plotOptions, selectColumn);
-  const points = [];
+  const points = [], scanlines = [];
+  let scanline = [];
   for (const row of noHeader ? rows : rows.slice(1)) {
-    if (!row.length || row.every((cell) => !String(cell).trim())) continue;
+    if (!row.length) {
+      if (scanline.length) scanlines.push(scanline);
+      scanline = [];
+      continue;
+    }
     const rawX = String(row[xIndex] ?? "").trim();
     const rawY = String(row[yIndex] ?? "").trim();
     const dateX = parsePgfplotsDateCoordinate(rawX, "x", parserOptions.pgfplotsDateContext);
@@ -298,12 +316,16 @@ export function parsePgfplotsTablePoints(content, tableOptions = {}, diagnostics
       }
     }
     if (metaIndex >= 0) {
-      const rawMeta = String(row[metaIndex] ?? "").trim();
+      const rawMeta = stripOuterBracesText(row[metaIndex]);
       point.meta = parsePgfplotsPointMeta(rawMeta, plotOptions);
     }
     for (const { axis, side, index } of errorColumns) setExplicitPointError(point, axis, side, row[index]);
     points.push(point);
+    scanline.push(point);
   }
+  if (scanline.length) scanlines.push(scanline);
+  Object.defineProperty(points, "rows", { value: scanlines, configurable: true });
+  if (selectedMeta && metaIndex < 0) Object.defineProperty(points, "invalidCoordinateSource", { value: true });
   return points;
 }
 
@@ -424,16 +446,12 @@ function pgfplotsPointMetaColumn(plotOptions = {}, tableOptions = {}) {
 }
 
 function normalizePgfplotsTableRows(content, tableOptions = {}) {
-  let text = String(content || "").trim();
-  if (String(tableOptions["row sep"] || "").trim() === "\\\\") {
-    text = text.replace(/\\\\/g, "\n");
-  }
+  const text = stripTexComments(String(content || "").replace(/\r\n?/g, "\n")
+    .replace(/^[ \t]*[%#][^\n]*(?:\n|$)/gm, "")).trim();
+  if (!text) return [];
+  const rowSep = String(tableOptions["row sep"] || "").trim() === "\\\\" ? /\\\\/ : /\n/;
   const separator = pgfplotsTableColumnSeparator(tableOptions["col sep"]);
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => separator ? splitDelimitedTableRow(line, separator) : line.split(/\s+/));
+  return text.split(rowSep).map(line => line.trim()).map(line => line ? splitDelimitedTableRow(line, separator) : []);
 }
 
 function pgfplotsTableColumnSeparator(raw) {
@@ -448,7 +466,7 @@ function pgfplotsTableColumnSeparator(raw) {
 function splitDelimitedTableRow(line, separator) {
   const cells = [];
   let cell = "";
-  let quoted = false;
+  let quoted = false, braces = 0;
   for (let index = 0; index < line.length; index += 1) {
     const char = line[index];
     if (char === '"') {
@@ -460,14 +478,17 @@ function splitDelimitedTableRow(line, separator) {
       }
       continue;
     }
-    if (char === separator && !quoted) {
-      cells.push(cell.trim());
+    if (!quoted && char === "{") braces++;
+    if (!quoted && char === "}") braces = Math.max(0, braces - 1);
+    if (!quoted && !braces && (separator ? char === separator : /\s/.test(char))) {
+      cells.push(stripOuterBracesText(cell));
       cell = "";
+      if (!separator) while (/\s/.test(line[index + 1] ?? "")) index++;
       continue;
     }
     cell += char;
   }
-  cells.push(cell.trim());
+  cells.push(stripOuterBracesText(cell));
   return cells;
 }
 

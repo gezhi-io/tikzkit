@@ -8840,6 +8840,24 @@
       "resources": [
         { "name": "plotdata/pgfplots.randn.dat", "source": "pgfplots/plotdata/pgfplots.randn.dat" }
       ]
+    },
+    {
+      "id": "matrix-manual-table",
+      "title": "A heatmap from a table of cell centers",
+      "source": "../native-pgfplots-matrix-plots/matrix-manual-table.tex",
+      "sourceCorpus": "TeX Live PGFPlots manual",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.reference.3dplots.tex",
+      "semanticOwner": "src/pgfplots/matrixSurvey.js:surveyMatrixPlot",
+      "features": ["matrix plot", "mesh/cols", "numeric table metadata", "point marks", "cell indices"]
+    },
+    {
+      "id": "matrix-manual-nan-colorbar",
+      "title": "A heatmap with a missing value and a colorbar",
+      "source": "../native-pgfplots-matrix-plots/matrix-manual-nan-colorbar.tex",
+      "sourceCorpus": "TeX Live PGFPlots manual",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.reference.3dplots.tex",
+      "semanticOwner": "src/pgfplots/matrixSurvey.js:surveyMatrixPlot;src/pgfplots/matrixPaint.js:renderMatrixPlot",
+      "features": ["matrix plot", "scanlines", "NaN metadata", "colorbar", "cell indices"]
     }
   ]
 }

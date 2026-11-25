@@ -1,0 +1,32 @@
+% Observe the installed mesh painter's finished soft path, without changing its paint.
+\makeatletter
+\newwrite\mxout \immediate\openout\mxout=matrix.records
+\def\mxwrite#1{\immediate\write\mxout{\mxid|#1}}
+\def\mxpoint#1#2#3{\mxwrite{#1|\the\dimexpr#2\relax|\the\dimexpr#3\relax}}
+\def\mxsoft#1{\begingroup
+  \pgfgetpath\mxpath\mxwrite{path|#1}%
+  \def\pgfsyssoftpath@movetotoken{\mxpoint{M}}%
+  \def\pgfsyssoftpath@linetotoken{\mxpoint{L}}%
+  \def\pgfsyssoftpath@closepathtoken##1##2{\mxwrite{Z}}%
+  \mxpath\endgroup}
+\def\mxcell#1{\begingroup\convertcolorspec{named}{mapped color}{rgb}\mxrgb
+  \mxsoft{cell|#1|\mxrgb}\endgroup}
+\let\mxorigfillstroke\pgfplotsplothandlermeshusepathfillstroke
+\def\pgfplotsplothandlermeshusepathfillstroke{\mxcell{fillstroke}\mxorigfillstroke}
+\let\mxorigfill\pgfplotsplothandlermeshusepathfill
+\def\pgfplotsplothandlermeshusepathfill{\mxcell{fill}\mxorigfill}
+% Capture the actual clip, tick and overlay paths, before the driver consumes them.
+\let\mxrole\empty
+\tikzset{mx role/.code={\def\mxrole{#1}}}
+\def\mxclip{clip}
+\let\mxoriguse\pgfusepath
+\def\pgfusepath#1{\begingroup
+  \def\mxaction{#1}\ifx\mxaction\mxclip\mxsoft{clip}\fi
+  \ifx\mxrole\empty\else\mxsoft{\mxrole}\fi\endgroup\mxoriguse{#1}}
+% The translation of the actual plot mark includes centers with transparent paint.
+\let\mxorigmark\pgfuseplotmark
+\def\pgfuseplotmark#1{\begingroup\pgfpointtransformed{\pgfpointorigin}%
+  \mxpoint{mark}{\pgf@x}{\pgf@y}\endgroup\mxorigmark{#1}}
+\def\mxgauge#1#2{\begingroup#2\mxpoint{gauge|#1}{\pgf@x}{\pgf@y}\endgroup}
+\def\mxlimits{\mxwrite{limits|\pgfkeysvalueof{/pgfplots/xmin}|\pgfkeysvalueof{/pgfplots/xmax}|\pgfkeysvalueof{/pgfplots/ymin}|\pgfkeysvalueof{/pgfplots/ymax}}}
+\makeatother

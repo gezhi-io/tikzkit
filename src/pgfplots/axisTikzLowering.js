@@ -6,6 +6,7 @@ import { layoutNativeText } from "../tex/textBox.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
 import { mergePgfplotsOptionMaps } from "./namedOptions.js";
 import {
+  hasReversed2DFrame,
   renderAxisBounds,
   renderAxisBox,
   renderAxisLines,
@@ -21,6 +22,8 @@ import { renderAxisLabels } from "./labels.js";
 import { renderAxis3DBackground } from "./axis3d.js";
 import { renderLegendEntries } from "./legend.js";
 import { preparePgfplotsHistogram } from "./histogram.js";
+import { prepareMatrixPlots } from "./matrixPlots.js";
+import { renderMatrixColorbar } from "./matrixColorbar.js";
 import { isPgfplotsIntervalPlot } from "./intervalPlots.js";
 import { preparePgfplotsBoxplots } from "./boxplots.js";
 import { axisRenderedTickLabels, axisTickLabelInnerSep, axisTickLabelStyleOptions, axisTickNumberFormat, normalizedTickAlignment, renderAxisTicks } from "./ticks.js";
@@ -58,8 +61,11 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     "pgfplots declared functions": declaredFunctions,
     "pgfplots compat": preparedAxisOptions.compat ?? options.pgfplotsStyleOptions?.compat
   }, symbolic.addplots, options, diagnostics);
-  const finitePlots = filterUnboundedCoordinates(boxplots, symbolic.axisOptions);
-  const stacked = preparePgfplotsStackedPlots(symbolic.axisOptions, finitePlots, options);
+  // Matrix topology includes invisible cells. Survey the intact scanlines,
+  // after symbolic coordinates resolve but before normal curve filtering.
+  const matrix = prepareMatrixPlots(symbolic.axisOptions, boxplots, diagnostics, options.pgfplotsStyleDefinitions);
+  const finitePlots = filterUnboundedCoordinates(matrix.addplots, matrix.axisOptions);
+  const stacked = preparePgfplotsStackedPlots(matrix.axisOptions, finitePlots, options);
   let addplots = applyPgfplotsCycleStyles(withBarGroups(stacked.addplots, areaAxisOptions), stacked.axisOptions, options);
   const legendEntries = dependencies.parseLegendEntries(body);
   const has3dSurface = addplots.some((plot) => dependencies.isSurfacePlot(plot, dateAxisOptions));
@@ -181,8 +187,10 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     }
   }
   if (!axisOnTop && !axisReplayModel) {
-    commands.push(...renderAxisLineCommands(axisModel));
-    if (!topView3D) commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
+    const lines = renderAxisLineCommands(axisModel);
+    const ticks = topView3D ? [] : renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry);
+    if (hasReversed2DFrame(axisModel.options, axisModel.geometry)) commands.push(...ticks, ...lines);
+    else commands.push(...lines, ...ticks);
     // PGFPlots BEGIN@init@and@draw@axis paints the box before the clipped
     // plots. Only axis-on-top and the separate 3D foreground pass replay it.
     if (!topView3D && axisBox) commands.push(axisBox);
@@ -228,7 +236,14 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   commands.push(...afterAxisMarks);
   commands.push(...renderAxisLabels(barAxisLabelOptions(axisModel), axisModel.ranges, axisModel.geometry));
   commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots, options));
+  const parentBox = "tikzkit matrix parent axis";
+  const matrixColorbar = axisModel.options["pgfplots matrix meta range"]
+    ? renderMatrixColorbar(axisModel.options, axisModel.ranges, axisModel.geometry, parentBox) : [];
+  // The child color axis uses this parent's descriptions, never the bounds
+  // of unrelated drawings that happen to precede it in the picture.
+  if (matrixColorbar.length) commands.push("}");
   commands.push(...renderCurrentAxisCoordinates(axisModel));
+  commands.push(...matrixColorbar);
   // Measure descriptions and ticks as one unit, including user overlay labels.
   // The leading separator also terminates a preceding legacy \tikzstyle.
   const nativeAxisText = pgfplotsUsesNative2DText(axisModel.options);
@@ -254,6 +269,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       margin: { left: 0, right: 0, bottom: 0, top: 0 }
     });
   }
+  if (matrixColorbar.length) commands.unshift(`{[local bounding box=${parentBox}]`);
   const bodyText = commands.join("\n");
   // Node outer sep is .5 pgflinewidth, including undrawn tick/annotation
   // boxes. Preserve the axis scope's width instead of shifting text later.

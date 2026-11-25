@@ -54,7 +54,8 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
     const errorBars = resolvePlotErrorBars(axisOptions, plot, options.diagnostics);
     if (plot.type === "coordinates") {
       surveyErrors(plot.points, errorBars);
-      for (const point of plot.boxplotSurveyPoints ?? pgfplotsPlotRangePoints(plot, axisOptions, "x")) {
+      const surveyPoints = plot.matrixSurvey?.rangePoints ?? plot.boxplotSurveyPoints;
+      for (const point of surveyPoints ?? pgfplotsPlotRangePoints(plot, axisOptions, "x")) {
         if (!axisValueIsValidForScale(point.x, axisOptions, "x")) continue;
         if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
         if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
@@ -64,7 +65,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
           if (!hasExplicitXMax) xMax = Math.max(xMax, stackedBaseX);
         }
       }
-      for (const point of plot.boxplotSurveyPoints ?? pgfplotsPlotRangePoints(plot, axisOptions, "y")) {
+      for (const point of surveyPoints ?? pgfplotsPlotRangePoints(plot, axisOptions, "y")) {
         if (!axisValueIsValidForScale(point.y, axisOptions, "y")) continue;
         if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
         if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
@@ -254,7 +255,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
   }
   // Small quartile ranges and probability densities can be below .001 in
   // data units. Keep those and the outer surface facets distinct on projection.
-  const preciseFrame = hasSurfacePlot || addplots.some(plot => plot.boxplot || plot.histogram);
+  const preciseFrame = hasSurfacePlot || addplots.some(plot => plot.boxplot || plot.histogram || plot.matrixSurvey);
   const ranges = {
     xMin: roundResolvedAxisValue(xMin, xLog || preciseFrame || errorX, "x"),
     xMax: roundResolvedAxisValue(xMax, xLog || preciseFrame || errorX, "x"),

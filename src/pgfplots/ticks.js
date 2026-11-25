@@ -40,7 +40,11 @@ export function createTickAxisModel(axis, axisOptions = {}, ranges = {}, addplot
   const allDisabled = ticksDisabled(axisOptions.ticks) || ticksDisabled(axisOptions.tick);
   const raw = axis === "x" ? axisOptions.xtick ?? axisOptions["x tick"] : axisOptions.ytick ?? axisOptions["y tick"];
   const disabled = allDisabled || pgfplotsAxisHidden(axisOptions, axis) || ticksDisabled(raw);
-  const limits = axisOptions["pgfplots bar category axis"] && isBoxAxis(axisOptions)
+  // Image survey limits locate the outer half-cells. Tick preparation runs
+  // later, against the enlarged frame, including any empty margins.
+  const finalBox = isBoxAxis(axisOptions) &&
+    (axisOptions["pgfplots bar category axis"] || addplots.some(plot => plot.matrixSurvey));
+  const limits = finalBox
     ? geometry.lineRanges || geometry.transformRanges || ranges : ranges;
   const min = Number(limits[`${axis}Min`]);
   const max = Number(limits[`${axis}Max`]);

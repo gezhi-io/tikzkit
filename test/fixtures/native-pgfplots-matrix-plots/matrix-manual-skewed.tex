@@ -1,0 +1,27 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{width=7cm,compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[enlargelimits=0.2,colorbar]
+    \addplot [
+        matrix plot,
+        nodes near coords=\coordindex,mark=*,
+        point meta=\coordindex,
+    ] table {
+        x    y
+        0    0
+        1    -0.1
+        2    0.2
+
+        -0.2 1
+        1    1
+        2    1
+
+        0    2
+        1.3  2
+        2    2.5
+    };
+\end{axis}
+\end{tikzpicture}
+\end{document}

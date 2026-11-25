@@ -30,6 +30,7 @@ limitations of each library. Complete figure compatibility remains partial.
 - [Quiver styles, sampling and surface colors](qa/2026-10-23-pgfplots-quiver-colors.md)
 - [Histogram bounds and literal tick baselines](qa/2026-10-23-histogram-bounds.md)
 - [Numeric histogram counts, densities, cumulative plots and interval labels](qa/2026-11-25-pgfplots-histograms.md)
+- [Two-dimensional matrix plots: cell geometry, missing data and colorbars](qa/2026-11-25-pgfplots-matrix-plots.md)
 - [Native hats and pin formula construction](qa/2026-10-23-native-math-hat.md)
 - [Path stroke bounds and remaining compact math-label differences](qa/2026-10-23-path-stroke-bounds.md)
 - [3D annotations, scaling and surface topology](qa/2026-10-23-pgfplots-3d-annotations.md)

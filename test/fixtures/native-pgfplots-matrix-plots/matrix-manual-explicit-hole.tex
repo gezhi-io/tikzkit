@@ -1,0 +1,23 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{width=7cm,compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[enlargelimits=false]
+    \addplot [
+        matrix plot,
+        mark=*,nodes near coords=\coordindex,
+        mesh/color input=explicit,
+    ] coordinates {
+        (0,0) [color=red] (1,0) [color=blue]
+            (2,0) [color=yellow]
+
+        (0,1) [color=black] (1,1) []
+            (2,1) [color=magenta]
+
+        (0,2) [color=green] (1,2) [color=red]
+            (2,2) [color=white]
+    };
+\end{axis}
+\end{tikzpicture}
+\end{document}

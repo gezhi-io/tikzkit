@@ -16954,6 +16954,7 @@ function semanticSubtype(options = {}) {
   if (options["tikzquads parallel path"]) return "tikzquads-parallel-connect";
   if (options["tikzquads kind"]) return `tikzquads-${String(options["tikzquads kind"]).trim().replace(/\s+/g, "-")}`;
   if (options["axis error bar"]) return "axis-error-bar";
+  if (options["axis matrix cell"]) return "axis-matrix-cell";
   if (options["axis boxplot box"]) return "axis-boxplot-box";
   if (options["axis boxplot median"]) return "axis-boxplot-median";
   if (options["axis boxplot whisker"]) return "axis-boxplot-whisker";

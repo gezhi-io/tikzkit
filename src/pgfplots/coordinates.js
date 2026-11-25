@@ -15,12 +15,18 @@ export function parseCoordinateList(input, plotOptions = {}, diagnostics = []) {
 
 export function parseCoordinateRows(input, plotOptions = {}, diagnostics = []) {
   const rows = [];
+  // A comment-only line is not a TeX paragraph; a literal \par is.
+  const source = stripTexComments(String(input ?? "").replace(/\r\n?/g, "\n")
+    .replace(/^[ \t]*%[^\n]*(?:\n|$)/gm, ""));
   // PGF's coordinate stream ends at a bad suffix, even if more scanlines follow.
-  for (const text of String(input ?? "").trim().split(/\n\s*\n+/)) {
+  for (const text of source.trim().split(/\n\s*\n+|\\par(?![A-Za-z@])/)) {
     const row = [];
-    const ok = parseCoordinateRow(stripTexComments(text), row, plotOptions, diagnostics);
+    const ok = parseCoordinateRow(text, row, plotOptions, diagnostics);
     if (row.length) rows.push(row);
-    if (!ok) break;
+    if (!ok) {
+      Object.defineProperty(rows, "invalid", { value: true });
+      break;
+    }
   }
   return rows;
 }
@@ -39,8 +45,8 @@ function parseCoordinateRow(text, row, plotOptions, diagnostics) {
     const tuple = readPointArgument(text, i);
     if (!tuple) return invalid(i);
     i = tuple.end;
-    const fields = tuple.fields.filter(Boolean);
-    if (fields.length < 2) continue;
+    const fields = tuple.fields;
+    if (fields.length < 2 || fields.length > 3) return invalid(i - 1);
     const point = coordinatePoint(fields);
     let errors;
     for (;;) {
@@ -119,7 +125,10 @@ export function setExplicitPointError(point, axis, side, raw, mathParser = false
 }
 
 export function parsePgfplotsPointMeta(raw, plotOptions) {
-  if (/\bsymbolic\b/i.test(String(plotOptions["point meta"] || ""))) return raw;
+  if (/\bsymbolic\b/i.test(String(plotOptions["point meta"] || "")) ||
+      /^explicit(?: mathparse)?$/.test(plotOptions["mesh/color input"] ?? plotOptions["/pgfplots/mesh/color input"])) return raw;
+  if (/^[+-]?nan$/i.test(raw)) return NaN;
+  if (/^[+-]?inf(?:inity)?$/i.test(raw)) return raw[0] === "-" ? -Infinity : Infinity;
   const value = axisNumber(raw, NaN);
   return Number.isFinite(value) ? value : raw;
 }

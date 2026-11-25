@@ -110,6 +110,28 @@ or its [8,000-observation example](../test/fixtures/examples/pgfplots/hist-manua
 with the accompanying [data file](../test/fixtures/examples/pgfplots/plotdata/pgfplots.randn.dat).
 The [visual comparison](qa/2026-11-25-pgfplots-histograms.md) shows what changed.
 
+## Matrix Heatmaps
+
+Each coordinate is the **center** of a cell; its bracketed value selects the
+color. Here the first row is at the top and the middle cell is left blank.
+
+```latex
+\begin{tikzpicture}
+  \begin{axis}[enlargelimits=false,colorbar]
+    \addplot[matrix plot,mesh/cols=3,point meta=explicit] coordinates {
+      (0,0)[0] (1,0)[1]   (2,0)[2]
+      (0,1)[3] (1,1)[nan] (2,1)[5]
+      (0,2)[6] (1,2)[7]   (2,2)[8]
+    };
+  \end{axis}
+\end{tikzpicture}
+```
+
+Requires `\usepackage{pgfplots}`. Use `matrix plot*` to keep the axis's
+original direction. Try the manual's [table input](../test/fixtures/native-pgfplots-matrix-plots/matrix-manual-table.tex)
+or [missing value with numbered cells](../test/fixtures/native-pgfplots-matrix-plots/matrix-manual-nan-colorbar.tex).
+See the [browser and native comparison](qa/2026-11-25-pgfplots-matrix-plots.md) for the supported options and limits.
+
 ## Polar Functions
 
 | TikZKit in Chromium | Local tikztosvg in Chromium |
