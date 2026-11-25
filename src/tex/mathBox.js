@@ -203,6 +203,7 @@ function build(node, ctx) {
     case "color": return list(node.body, { ...ctx, color: node.color });
     case "mclass": return { ...list(node.body, ctx), atom: node.mclass.slice(1), character: false };
     case "font":
+      if (node.font === "mathit") return italicMathWord(node.body, ctx);
       if (!["mathrm", "mathnormal", "mathbf", "boldsymbol", "mathcal"].includes(node.font)) return unsupported();
       if (node.font === "boldsymbol") return { ...build(node.body, { ...ctx, bold: true }), character: false };
       return build(node.body, { ...ctx, calligraphic: node.font === "mathcal",
@@ -293,17 +294,35 @@ function dimension(value, ctx) {
 function textBox(node, ctx) {
   if (!["\\text", "\\textrm", "\\textnormal", "\\textbf", "\\mbox"].includes(node.font)) return unsupported();
   const textFace = node.font === "\\textbf" ? "CMBX" : "CMR";
-  const textCtx = { ...ctx, textFace, bold: false };
+  return { ...textRun(node.body, ctx, textFace), atom: "ord", character: false };
+}
+
+function textRun(nodes, ctx, textFace) {
   const font = nativeMathFont(textFace, fontSize(ctx));
   const body = [];
-  for (const item of node.body) {
+  for (const item of nodes) {
     const previous = body.at(-1);
     const ligature = item.type === "textord" && previous?.type === "textord"
       && font.ligatures[previous.text]?.[item.text];
     if (ligature) previous.text = ligature;
     else body.push({ ...item });
   }
-  return { ...list(body, textCtx), atom: "ord", character: false };
+  return list(body, { ...ctx, textFace, bold: false });
+}
+
+function italicMathWord(node, ctx) {
+  const size = fontSize(ctx);
+  // OT1/cmr/m/it uses cmti10 at these two sizes. Don't substitute it for
+  // a missing optical size or for the bx/it face in the bold math version.
+  if (ctx.bold || (size !== 10 && size !== 10.95)) return unsupported();
+  const letters = node.type === "ordgroup" ? node.body : [node];
+  if (!letters.every(n => ["mathord", "textord"].includes(n.type) && /^[A-Za-z0-9]$/.test(n.text))) return unsupported();
+  const box = textRun(letters.map(n => ({ type: "textord", text: n.text })), ctx, "CMTI");
+  // TeX lig/kerns consecutive math letters in a text family and adds the
+  // italic correction only to the final glyph, including a final ligature.
+  const last = box.items.at(-1);
+  const italic = last ? nativeMathFont("CMTI", size).glyphs[last.text][3] * size : 0;
+  return { ...box, width: box.width + italic, italic, atom: "ord", character: letters.length === 1 };
 }
 
 function radical(node, ctx) {

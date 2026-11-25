@@ -8858,6 +8858,33 @@
       "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.reference.3dplots.tex",
       "semanticOwner": "src/pgfplots/matrixSurvey.js:surveyMatrixPlot;src/pgfplots/matrixPaint.js:renderMatrixPlot",
       "features": ["matrix plot", "scanlines", "NaN metadata", "colorbar", "cell indices"]
+    },
+    {
+      "id": "petri-manual-styled-tokens",
+      "title": "Seven plain tokens and three structured tokens",
+      "source": "../native-petri/petri-manual-styled-tokens.tex",
+      "sourceCorpus": "TeX Live PGF Petri Nets manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-petri.tex:41-46",
+      "semanticOwner": "src/tikz/libraries/petri.js:petriStyles;src/tikz/libraries/petriTokens.js:petriTokenGroups",
+      "features": ["Petri nets", "place styles", "seven tokens", "structured tokens", "math labels"]
+    },
+    {
+      "id": "petri-manual-transition",
+      "title": "A transition with pre and post arcs and an edge weight",
+      "source": "../native-petri/petri-manual-transition.tex",
+      "sourceCorpus": "TeX Live PGF Petri Nets manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-petri.tex:65-72",
+      "semanticOwner": "src/tikz/libraries/petri.js:petriStyles;src/engine/evaluate.js:addIndependentEdgeItems",
+      "features": ["Petri nets", "pre and post arcs", "directional arrow tips", "auto edge label"]
+    },
+    {
+      "id": "petri-manual-structured-atlas",
+      "title": "Structured tokens from one through nine",
+      "source": "../native-petri/petri-manual-structured-atlas.tex",
+      "sourceCorpus": "TeX Live PGF Petri Nets manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-petri.tex:256-262",
+      "semanticOwner": "src/tikz/libraries/petriTokens.js:petriTokenGroups;src/tikz/libraries/petriTokens.js:petriTokenOffset",
+      "features": ["Petri nets", "foreach", "structured tokens", "nine token arrangements"]
     }
   ]
 }

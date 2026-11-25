@@ -1,0 +1,14 @@
+% PGF/TikZ manual, pgfmanual-en-library-petri.tex:256-262.
+% Copyright 2019 Till Tantau. LPPL and/or GNU Free Documentation License.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{petri}
+\begin{document}
+\begin{tikzpicture}[every place/.style={minimum size=9mm}]
+
+  \foreach \x/\y/\tokennumber in {0/2/1,1/2/2,2/2/3,
+                                  0/1/4,1/1/5,2/1/6,
+                                  0/0/7,1/0/8,2/0/9}
+    \node [place,structured tokens={1,...,\tokennumber}] at (\x,\y) {};
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,15 @@
+% PGF/TikZ manual, pgfmanual-en-library-petri.tex:170-177.
+% Copyright 2019 Till Tantau. LPPL and/or GNU Free Documentation License.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{petri}
+\begin{document}
+\begin{tikzpicture}
+  \node[place,label=above:$p_2$] {}
+  [children are tokens]
+  child {node [token] {1}}
+  child {node [token,fill=red] {2}}
+  child {node [token,fill=red] {2}}
+  child {node [token] {1}};
+\end{tikzpicture}
+\end{document}

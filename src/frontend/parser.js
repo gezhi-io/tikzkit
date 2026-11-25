@@ -1,5 +1,5 @@
 import { createToken, Lexer } from "chevrotain";
-import { codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseTikzset, splitTopLevel } from "../engine/options.js";
+import { applyStyleDeclarations, codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseStyleDeclarations, parseTikzset, splitTopLevel } from "../engine/options.js";
 import { preprocessTikzSource } from "./latex-shell.js";
 import { readForeachHeader } from "../tikz/commands/foreach.js";
 import { parsePgfPlotMarkDeclaration } from "../tikz/libraries/plotmarks.js";
@@ -78,7 +78,7 @@ export function parseTikz(source, options = {}) {
   }
   const parsePicture = (picture) => {
     const prePictureSource = preprocessed.source.slice(0, picture.beginIndex);
-    const globalCircuitikzSource = sourceOutsidePicturesBefore(
+    const outerSource = sourceOutsidePicturesBefore(
       preprocessed.source,
       picture,
       scannedPictures
@@ -89,7 +89,12 @@ export function parseTikz(source, options = {}) {
     const pgfMathSeedsBefore = collectPgfMathSetSeeds(
       preprocessed.source.slice(previousPictureEnd, picture.beginIndex)
     );
-    const globalStyles = collectStyleDefinitions(prePictureSource);
+    const declarations = collectStyleDefinitions(outerSource);
+    const globalStyles = applyStyleDeclarations(declarations);
+    // A replacement defines its own base. Only extension-only styles need
+    // replay after the evaluator installs the declared libraries' defaults.
+    const replacedStyles = new Set(declarations.filter(d => d.mode === "style").map(d => d.name));
+    const inheritedStyleEdits = declarations.filter(d => !replacedStyles.has(d.name));
     const globalOptions = collectTikzsetDirectOptions(prePictureSource);
     const globalCodeHandlers = collectCodeDefinitions(prePictureSource);
     const globalPics = collectPicDefinitions(prePictureSource);
@@ -108,8 +113,9 @@ export function parseTikz(source, options = {}) {
       graphicxResize: picture.graphicxResize,
       tabularLayout: tabularLayoutsByPicture.get(picture.index) || null,
       options: { ...globalOptions, ...parseOptions(picture.optionsRaw) },
-      circuitikzOptions: collectCtikzsetDirectOptions(globalCircuitikzSource),
+      circuitikzOptions: collectCtikzsetDirectOptions(outerSource),
       styles: globalStyles,
+      inheritedStyleEdits,
       codeHandlers: globalCodeHandlers,
       pics: globalPics,
       storedVariables: globalStoredVariables,
@@ -2669,13 +2675,13 @@ function createTabularRow(index, columnCount, rulesBefore = 0, blank = false) {
 }
 
 function collectStyleDefinitions(source) {
-  const styles = {};
+  const declarations = [];
   let index = 0;
   while (index < source.length) {
     if (source.startsWith("\\tikzset", index)) {
       const parsed = parseTikzsetDefinition(source, index);
       if (parsed) {
-        Object.assign(styles, parsed.styles);
+        declarations.push(...parsed.styleDeclarations);
         index = parsed.end;
         continue;
       }
@@ -2683,14 +2689,14 @@ function collectStyleDefinitions(source) {
     if (source.startsWith("\\tikzstyle", index)) {
       const parsed = parseTikzstyleDefinition(source, index);
       if (parsed) {
-        styles[parsed.name] = parseOptions(parsed.options);
+        declarations.push({ name: parsed.name, mode: "style", options: parseOptions(parsed.options) });
         index = parsed.end;
         continue;
       }
     }
     index += 1;
   }
-  return styles;
+  return declarations;
 }
 
 function collectTikzsetDirectOptions(source) {
@@ -2927,7 +2933,7 @@ function parseTikzsetDefinition(source, start) {
   const body = extractBalanced(source, index, "{", "}");
   if (!body) return null;
   return {
-    styles: parseTikzset(body.content),
+    styleDeclarations: parseStyleDeclarations(body.content),
     styleOptions: parseOptions(body.content),
     pics: parseTikzPics(body.content),
     end: body.end

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"petri-manual-places","title":"Two labeled places and two tokens","source":"petri-manual-places.tex","manualLines":[30,33]},
+    {"id":"petri-manual-styled-tokens","title":"Seven plain tokens and three structured tokens","source":"petri-manual-styled-tokens.tex","manualLines":[41,46]},
+    {"id":"petri-manual-transition","title":"A transition with pre and post arcs and an edge weight","source":"petri-manual-transition.tex","manualLines":[65,72]},
+    {"id":"petri-manual-structured-atlas","title":"Structured tokens from one through nine","source":"petri-manual-structured-atlas.tex","manualLines":[256,262]},
+    {"id":"petri-manual-colored","title":"Four colored tokens in TikZ shorthand","source":"petri-manual-colored.tex","manualLines":[242,242]},
+    {"id":"petri-manual-children","title":"Explicit token children with colored and numbered marks","source":"petri-manual-children.tex","manualLines":[170,177]},
+    {"id":"mutual-exclusion","title":"The original mutual-exclusion net","source":"mutual-exclusion.tex","manualLines":[273,318]}
+  ]
+}

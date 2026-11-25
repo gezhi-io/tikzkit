@@ -214,6 +214,27 @@ Switch to `[american]` for zigzag bodies. The [original manual example](../test/
 shows how to vary the modifier thickness independently of the body.
 See the [browser/native comparison](qa/2026-11-25-circuitikz-resistor-modifiers.md) for this GitHub version.
 
+## Petri Nets
+
+Load `petri` for places, transitions and tokens. Edges in this example are
+specified from the transition: `pre` points **toward** it, and `post` points
+**away** from it. The label `2` belongs to the outgoing edge, not the place.
+
+```tex
+\usetikzlibrary{petri,positioning}
+\begin{tikzpicture}
+  \node[place,tokens=2] (ready) {};
+  \node[transition,right=of ready] (fire) {};
+  \node[place,right=of fire] (done) {};
+  \path (fire) edge[pre] (ready) edge[post] node[above] {2} (done);
+\end{tikzpicture}
+```
+
+Try the [weighted transition](../test/fixtures/native-petri/petri-manual-transition.tex),
+[numbered token atlas](../test/fixtures/native-petri/petri-manual-structured-atlas.tex),
+or [mutual-exclusion network](../test/fixtures/native-petri/mutual-exclusion.tex) in the checkout.
+See the [browser results alongside MacTeX and tikztosvg](qa/2026-11-25-native-petri.md#visual-results).
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

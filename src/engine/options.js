@@ -116,7 +116,7 @@ export function stripTexComments(input = "") {
 function setParsedOption(options, key, value) {
   key = normalizePositioningKey(key);
   if (key === "/pgf/tips") key = "tips";
-  if (key === "draw" || key === "fill" || key === "double" || positioningRegisterName(key) || automataParameterName(key)) return setOrderedOption(options, key, value);
+  if (key === "draw" || key === "fill" || key === "double" || positioningRegisterName(key) || automataParameterName(key) || petriAppendKey(key)) return setOrderedOption(options, key, value);
   if (key === "pattern" || key === "/tikz/pattern") {
     // PGF's empty/none forms only toggle filling. Keep that action distinct
     // from selecting ink so a bare key cannot shadow a scoped tile name.
@@ -137,12 +137,29 @@ function setParsedOption(options, key, value) {
 }
 
 export function parseTikzset(input = "") {
-  const styles = {};
+  return applyStyleDeclarations(parseStyleDeclarations(input));
+}
+
+export function parseStyleDeclarations(input) {
+  const declarations = [];
   for (const part of splitTopLevel(input, ",")) {
     const match = part.match(/^(.+?)\/\.(style|append\s+style|prefix\s+style)\s*=\s*\{([\s\S]*)\}$/);
     if (match) {
-      styles[match[1].trim()] = parseOptions(match[3]);
+      declarations.push({ name: match[1].trim(), mode: match[2].replace(/\s+/g, " "), options: parseOptions(match[3]) });
     }
+  }
+  return declarations;
+}
+
+function mergeStyleDefinition(existing, mode, options) {
+  if (mode === "style") return options;
+  return mode === "append style" ? mergeOptionOrder({ ...existing }, options) : mergeOptionOrder({ ...options }, existing);
+}
+
+export function applyStyleDeclarations(declarations = [], baseStyles = {}) {
+  const styles = {};
+  for (const { name, mode, options } of declarations) {
+    styles[name] = mergeStyleDefinition(styles[name] ?? baseStyles[name], mode, options);
   }
   return styles;
 }
@@ -178,14 +195,7 @@ export function styleDefinitionsFromOptions(rawOptions = {}, baseStyles = {}) {
     const name = match[1].trim();
     const mode = match[2].replace(/\s+/g, " ");
     const parsed = parseOptions(value === true ? "" : String(value));
-    if (mode === "style") {
-      styles[name] = parsed;
-      continue;
-    }
-    const existing = styles[name] || baseStyles[name] || {};
-    styles[name] = mode === "append style"
-      ? { ...existing, ...parsed }
-      : { ...parsed, ...existing };
+    styles[name] = mergeStyleDefinition(styles[name] ?? baseStyles[name], mode, parsed);
   }
   return styles;
 }
@@ -1249,17 +1259,22 @@ function renameOrderedKey(options, key, replacement) {
   for (const [name, entry] of entries) if (name !== replacement) options[name === key ? replacement : name] = entry;
 }
 
+function petriAppendKey(key) {
+  return /^(?:\/tikz\/)?(tokens|colored tokens|structured tokens)$/.exec(key)?.[1] ??
+    /^tikzkit prior (tokens|colored tokens|structured tokens) \d+$/.exec(key)?.[1];
+}
+
 function setOrderedOption(options, key, value) {
   key = normalizePositioningKey(key);
   key = automataParameterName(key) ?? key;
   if (preserveAutomataWrite(options, key, value)) return;
   if (key === "/pgf/tips") key = "tips";
-  const register = positioningRegisterName(key);
+  const register = positioningRegisterName(key) ?? petriAppendKey(key);
   if (register) {
     key = register;
     if (Object.hasOwn(options, key)) {
-      // Directions read these registers immediately. Keep earlier writes
-      // in place through style expansion, alongside the public final value.
+      // Positioning assignments and Petri append actions execute where
+      // written. Keep earlier occurrences in place through style expansion.
       let index = Object.keys(options).length;
       while (Object.hasOwn(options, `tikzkit prior ${key} ${index}`)) index++;
       renameOrderedKey(options, key, `tikzkit prior ${key} ${index}`);

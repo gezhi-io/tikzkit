@@ -22,6 +22,26 @@ export function createForeachBudget({ maxIterations = FOREACH_EXPANSION_LIMIT, m
   };
 }
 
+export function reserveForeachListScan(raw, env, expression = raw) {
+  const budget = env.foreachBudget ||= createForeachBudget();
+  // Separators and empty fields cost a scan even when no body runs.
+  const available = budget.remainingListScan ?? 2 * budget.remainingCharacters;
+  if (raw.length > budget.remainingCharacters || raw.length > available) {
+    throw new ForeachExpansionError("foreach-expansion-limit", "Foreach list exceeds the shared work/output limit.", expression);
+  }
+  budget.remainingListScan = available - raw.length;
+  return budget;
+}
+
+export function appendForeachValue(values, value, budget) {
+  if (!(budget.remainingIterations >= 1) || !(budget.remainingCharacters >= value.length)) {
+    throw new ForeachExpansionError("foreach-expansion-limit", "Foreach expansion exceeds the shared work/output limit.", value);
+  }
+  budget.remainingIterations--;
+  budget.remainingCharacters -= value.length;
+  values.push(value);
+}
+
 // Called just after the foreach keyword by both TeX-lite and the TikZ parser.
 // Stop at the list token, before it can consume a brace from the loop body.
 export function readForeachHeader(text, index, readGroup) {
@@ -103,13 +123,7 @@ export function foreachIterationVariables(statement, env = { variables: {} }) {
       throw new ForeachExpansionError("foreach-undefined-list", "Undefined foreach list control sequence.", `\\${name}`);
     }
     const raw = String(env.variables[name] ?? "");
-    const budget = env.foreachBudget ||= createForeachBudget();
-    // Separators and empty fields still cost a scan, even when no body runs.
-    const available = budget.remainingListScan ?? 2 * budget.remainingCharacters;
-    if (raw.length > budget.remainingCharacters || raw.length > available) {
-      throw new ForeachExpansionError("foreach-expansion-limit", "Foreach list exceeds the shared work/output limit.", `\\${name}`);
-    }
-    budget.remainingListScan = available - raw.length;
+    reserveForeachListScan(raw, env, `\\${name}`);
     entries = splitTopLevel(raw, ",");
   }
   const listOptions = { macroList: Boolean(statement.listMacro), expandList: [true, "true"].includes(statement.options?.["expand list"]) };
@@ -132,14 +146,7 @@ export function expandForeachValues(values, env = { variables: {} }, { macroList
   // retain the same object, so nested and sibling loops consume one allowance.
   const budget = env.foreachBudget ||= createForeachBudget();
   const expanded = [];
-  const append = (value) => {
-    if (!(budget.remainingIterations >= 1) || !(budget.remainingCharacters >= value.length)) {
-      throw new ForeachExpansionError("foreach-expansion-limit", "Foreach expansion exceeds the shared work/output limit.", value);
-    }
-    budget.remainingIterations -= 1;
-    budget.remainingCharacters -= value.length;
-    expanded.push(value);
-  };
+  const append = value => appendForeachValue(expanded, value, budget);
   for (let index = 0; index < values.length; index += 1) {
     const value = String(values[index] ?? "").trim();
     const grouped = /^\{\s*\\([A-Za-z@]+)\s*\}$/.exec(value);

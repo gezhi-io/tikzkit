@@ -1543,7 +1543,7 @@ export function mathFallbackText(tex) {
   text = replaceCommand(text, "mathrm", 1, (args) => args[0]);
   text = replaceExtensibleMathArrowsWithGlyphs(text);
   text = replaceMathMatrixEnvironments(text);
-  text = text.replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)(?![A-Za-z])\s*/g, "");
+  text = text.replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle|mathit)(?![A-Za-z])\s*/g, "");
   text = replaceMathFractionCommands(text);
   return text
     // LaTeX's \quad and \qquad expand to 1em and 2em glue respectively.

@@ -19,6 +19,8 @@ import { currarrowHead, generatorSettings, generatorVoltage } from "../extension
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { automataPlacement, automataStyles, replayAutomataNodeParameters } from "../tikz/libraries/automata.js";
+import { petriStyles } from "../tikz/libraries/petri.js";
+import { petriChildLayout, petriChildNodeOptions, petriTokenGroups, petriTokenOffset } from "../tikz/libraries/petriTokens.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
 import { loadsModernArrowDefaults } from "../tikz/libraries/arrows.meta.js";
 import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
@@ -184,7 +186,7 @@ import {
   normalizeOptions,
   parseOptions,
   splitTopLevel,
-  styleDefinitionsFromOptions,
+  applyStyleDeclarations, styleDefinitionsFromOptions,
   stripOuterBraces,
   substituteDynamicOptionValues,
   tikzBoolean
@@ -285,6 +287,7 @@ export function interpretTikz(ast, options = {}) {
     previewMargins: ast.previewMargins
   });
   const visiblePictures = ast.pictures || [];
+  const petriLoaded = ast.libraries?.some(lib => (lib.name || lib) === "petri") ?? false;
   const evaluationPictures = [
     ...(ast.semanticPreludePictures || []).map((picture) => ({ picture, semanticOnly: true })),
     ...visiblePictures.map((picture) => ({ picture, semanticOnly: false }))
@@ -311,7 +314,8 @@ export function interpretTikz(ast, options = {}) {
       ? createSceneGraph({ backgroundItems: [] })
       : ir;
     const pictureCoordinates = documentCoordinates;
-    const baseStyles = { ...BUILTIN_STYLES, ...(picture.styles || {}) };
+    const libraryStyles = petriLoaded ? { ...BUILTIN_STYLES, ...petriStyles } : BUILTIN_STYLES;
+    const baseStyles = { ...libraryStyles, ...picture.styles, ...applyStyleDeclarations(picture.inheritedStyleEdits, libraryStyles) };
     const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
     const baseVariables = {
       ...evaluatePicturePgfMathMacros(picture.pgfMathMacros || [], DEFAULT_TEX_VARIABLES),
@@ -346,6 +350,7 @@ export function interpretTikz(ast, options = {}) {
     const picturePlane = canvasPlaneEnvironment(pictureTransformEnv, pictureOptions, pictureTransform);
     const env = {
       arrowMetaLoaded: loadsModernArrowDefaults(ast.libraries, picture.packages || ast.packages),
+      petriLoaded,
       positioningLoaded: ast.libraries?.some(lib => ["positioning", "chains"].includes(lib.name || lib)),
       foreachBudget,
       currentFont: pictureTransformEnv.currentFont,
@@ -1110,7 +1115,7 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
             }
           }
         : env;
-      createNodeTreeChildren(node, statement.children, treeEnv, ir, diagnostics, 1, statement.treeOptions || {});
+      createNodeTreeChildren(node.petriContinuation ?? node, statement.children, treeEnv, ir, diagnostics, 1, statement.treeOptions || {});
     }
     return;
   }
@@ -1968,7 +1973,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         ? resolveTurnCoordinate(segment.raw, currentBase, lastSegment, env, diagnostics)
         : null;
       const subpathStart = !segment.relative && segment.raw === "current subpath start" ? start : null;
-      const point = subpathStart || turnedPoint || (segment.relative
+      const point = segment.nodeRef?.node.point || subpathStart || turnedPoint || (segment.relative
         ? resolveRelativeCoordinate(segment.raw, relativeOrigin, env, diagnostics)
         : resolveCoordinate(segment.raw, env, diagnostics));
       if (gridLiterals && !segment.relative && !subpathStart) gridLiterals.set(point, segment.raw);
@@ -1979,7 +1984,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       const localPoint = segment.relative || !shouldResolveAsLocalRectangleCorner(segment.raw)
         ? null
         : resolveLocalCoordinate(segment.raw, env, diagnostics);
-      const nodeRef = segment.relative ? null : defaultPathNodeReference(segment.raw, env);
+      const nodeRef = segment.nodeRef ?? (segment.relative ? null : defaultPathNodeReference(segment.raw, env));
       // Without an explicit start, rectangles and grids begin at the transformed origin.
       if (!current && (pendingValue === "rectangle" || pendingValue === "grid")) {
         const origin = applyCoordinateTransform({ x: 0, y: 0 }, env);
@@ -2588,7 +2593,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       const point = segment.at
         ? resolveCoordinate(segment.at, env, diagnostics)
         : inlineNodePathPoint(placementOptions, lastSegment) || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
-      addInlinePathNode(segment, text, point, foreground, env, pathStyle, lastSegment, effectivePathOptions);
+      addInlinePathNode(segment, text, point, foreground, env, pathStyle, lastSegment, effectivePathOptions, diagnostics);
       continue;
     }
     if (segment.kind === "close" && start) {
@@ -6660,7 +6665,7 @@ function flushInlinePathNodesAt(pendingInlineNodes, point, nodes, env, pathStyle
   }
 }
 
-function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pathSegment = null, pathOptions = {}) {
+function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pathSegment = null, pathOptions = {}, diagnostics = []) {
   const rawOptions = resolveDynamicOptions(segment.options || {}, env);
   const localOptions = normalizeOptions("node", inlineNodeOptions(rawOptions, pathStyle, pathOptions), env).options;
   const normalizedOptions = normalizeOptions("node", {
@@ -6672,11 +6677,11 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   return withDimensionFont(
     () => nodeDimensionFontSpec(expandedOptions, env),
-    () => addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyle, pathSegment, rawOptions, expandedOptions)
+    () => addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyle, pathSegment, rawOptions, expandedOptions, localOptions, diagnostics)
   );
 }
 
-function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyle, pathSegment, rawOptions, expandedOptions) {
+function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyle, pathSegment, rawOptions, expandedOptions, localOptions, diagnostics) {
   const rawText = resolveNodeTextContent(text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
   text = applyNodeLineBreakSemantics(resolveTextContent(rawText, env), expandedOptions);
@@ -6738,7 +6743,16 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
     env.coordinates[nodeName] = nodePoint;
     materializeCircuitikzNodeAnchors(nodeName, env);
   }
+  let petriItems;
+  if (env.petriLoaded && ["tokens", "colored tokens", "structured tokens"].some(k => Object.hasOwn(localOptions, k))) {
+    // Register child anchors during construction (the same path can use
+    // them immediately), but ship their paint in the parent's node box.
+    const children = createSceneGraph();
+    appendPetriTokens({ name: nodeName, point: nodePoint, ...scaledSize }, localOptions, env, children, diagnostics);
+    petriItems = children.items;
+  }
   nodes.push({
+    ...(petriItems?.length && { petriItems }),
     at: point,
     displayPoint: nodePoint,
     text,
@@ -6990,11 +7004,11 @@ function createNode(statement, env, ir, diagnostics) {
   expandedOptions = applyRotateFitOption(expandedOptions);
   return withDimensionFont(
     () => nodeDimensionFontSpec(expandedOptions, env),
-    () => createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics)
+    () => createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics, localOptions)
   );
 }
 
-function createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics) {
+function createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics, localOptions) {
   const rawText = resolveNodeTextContent(statement.text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
   const resolvedText = resolveTextContent(rawText, env);
@@ -7122,12 +7136,20 @@ function createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics)
   const chainUpdate = updateChainState(expandedOptions, env, displayPoint, positioningSize, { name, nodeRecord });
   addNodeItems(node, ir, env);
   addChainJoinPath(chainUpdate, expandedOptions, env, ir, diagnostics);
-  if (name && statement.path?.segments?.length) {
-    addNodeAttachedPath(name, statement.path.segments, expandedOptions, env, ir, diagnostics);
+  const petriContinuation = env.petriLoaded && appendPetriTokens({ name, ...nodeRecord }, localOptions, env, ir, diagnostics);
+  const attached = statement.path?.segments;
+  if (attached?.length && attached.every(segment => segment.kind === "edge")) {
+    // TikZ's fig@mustbenamed saves the source shape even for an anonymous
+    // node. Its node options are out of scope when do@edge starts its path.
+    const source = { kind: "coordinate", nodeRef: { name, node: nodeRecord, mode: "center" } };
+    interpretPathStatement({ command: "path", path: { segments: [source, ...attached] } }, env, ir, diagnostics);
+  } else if (name && attached?.length) {
+    addNodeAttachedPath(name, attached, expandedOptions, env, ir, diagnostics);
   }
   return {
     name,
     text,
+    ...(petriContinuation && { petriContinuation }),
     point: displayPoint,
     width: size.width,
     height: size.height,
@@ -7308,6 +7330,22 @@ function isConceptNodeOptions(options = {}) {
   return Boolean(options["tikzkit concept"] || options.concept);
 }
 
+function appendPetriTokens(parentNode, options, env, ir, diagnostics) {
+  let last;
+  for (const children of petriTokenGroups(options, env)) {
+    // An every-token style can append another token indefinitely without
+    // exceeding the iteration budget before exhausting the JS call stack.
+    const depth = (env.petriAppendDepth ?? 0) + 1;
+    if (depth > 32) throw new ForeachExpansionError("foreach-expansion-limit", "Petri token append nesting exceeds the work limit.", "tokens");
+    const groupEnv = { ...env, petriAppendDepth: depth };
+    // append after command executes outside the node option/font group. Each
+    // successive append starts from the last figure named by the prior one.
+    last = withDimensionFont(() => nodeDimensionFontSpec({}, env), () =>
+      createNodeTreeChildren(last ?? parentNode, children, groupEnv, ir, diagnostics, 1, { "children are tokens": true }));
+  }
+  return last;
+}
+
 function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics, level = 1, treeOptions = {}) {
   if (!parentNode || !children.length) return;
   const expandedChildren = expandTreeChildForeach(children, env);
@@ -7321,6 +7359,7 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     pictureOptions: treeDescendantPictureOptions(env.pictureOptions, resolvedTreeOptions)
   };
   const levelOptions = treeLevelOptions(level, childBaseEnv);
+  const petriScope = env.petriLoaded && (env.petriTreeLayout ?? petriChildLayout(null, env.pictureOptions));
   const layouts = expandedChildren.map((child) => {
     const iterationEnv = child.foreachVariables
       ? { ...childBaseEnv, variables: child.foreachVariables }
@@ -7334,11 +7373,13 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
       iterationEnv
     ).options;
     const layoutOptions = mergeTreeGrowthOptions(levelOptions, resolvedTreeOptions, childTreeOptions);
-    const grow = treeGrowthSpec(iterationEnv, layoutOptions);
-    return { child, childTreeOptions, layoutOptions, grow, iterationEnv };
+    const petri = petriScope && petriChildLayout(petriScope, levelOptions, resolvedTreeOptions, childTreeOptions);
+    const grow = petri?.grow ? { kind: "petri", distance: petri.distance } : treeGrowthSpec(iterationEnv, layoutOptions);
+    return { child, childTreeOptions, layoutOptions, grow, iterationEnv, petri };
   });
+  let last;
   for (const [index, layout] of layouts.entries()) {
-    const { child, childTreeOptions, layoutOptions, grow, iterationEnv } = layout;
+    const { child, childTreeOptions, layoutOptions, grow, iterationEnv, petri } = layout;
     const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, iterationEnv);
     const childLocalGrowth = treeGrowthOption(childTreeOptions);
     const siblingDistance = childLocalGrowth
@@ -7348,7 +7389,7 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     const offset = treeChildOffset(index, layouts.length, siblingDistance, levelDistance, grow, layoutOptions, iterationEnv);
     offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", iterationEnv);
     offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", iterationEnv);
-    const projected = grow?.kind === "three-point"
+    const projected = grow?.kind === "three-point" || grow?.kind === "petri"
       ? applyCoordinateTransformVector(offset, iterationEnv)
       : projectLocalOffset(offset.x, offset.y, iterationEnv);
     const growthParentPoint = treeGrowthParentPoint(parentNode, layoutOptions, iterationEnv);
@@ -7358,6 +7399,7 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     });
     const childEnv = {
       ...iterationEnv,
+      ...(petri && { petriTreeLayout: petri }),
       pictureOptions: mergeTreeGrowthOptions(
         iterationEnv.pictureOptions,
         treeGrowthOptions(resolvedTreeOptions),
@@ -7366,14 +7408,18 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
       )
     };
     if (tikzBoolean(layoutOptions.missing)) continue;
+    const tokenLayout = petri?.active;
+    const autoName = tokenLayout && parentNode.name && !child.node.name && !child.node.options?.name
+      ? parentNode.name + "-" + (index + 1) : null;
     const childNode = child.node.type === "coordinate"
       ? { name: null, point, width: 0, height: 0, shape: "coordinate", options: child.node.options || {} }
       : createNode(
           {
             ...child.node,
+            ...(autoName && { name: autoName }),
             options: {
               ...treeEveryChildNodeOptions(childBaseEnv),
-              ...(child.node.options || {})
+              ...(tokenLayout ? petriChildNodeOptions(child.node.options || {}) : child.node.options || {})
             },
             at: null,
             absolutePoint: point,
@@ -7384,7 +7430,8 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
           diagnostics
     );
     if (!childNode) continue;
-    addTreeEdge(
+    last = childNode.petriContinuation ?? childNode;
+    if (!tokenLayout || !petriChildLayout(petri, childEdgeOptions).noEdge) addTreeEdge(
       parentNode,
       childNode,
       { ...layoutOptions, ...childEdgeOptions },
@@ -7397,8 +7444,9 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
       ...childEnv,
       pictureOptions: treeDescendantPictureOptions(childEnv.pictureOptions, childTreeOptions)
     };
-    createNodeTreeChildren(childNode, child.children || child.node.children || [], descendantEnv, ir, diagnostics, level + 1, child.node.treeOptions || {});
+    createNodeTreeChildren(last, child.children || child.node.children || [], descendantEnv, ir, diagnostics, level + 1, child.node.treeOptions || {});
   }
+  return last;
 }
 
 function expandTreeChildForeach(children = [], env = {}) {
@@ -7573,6 +7621,9 @@ function parseTreeDimension(value, fallback, env) {
 }
 
 function treeChildOffset(index, count, siblingDistance, levelDistance, grow, options = {}, env = { variables: {} }) {
+  if (grow?.kind === "petri") {
+    return petriTokenOffset(index, count, parseTreeDimension(grow.distance, "1.5ex", env));
+  }
   if (grow?.kind === "three-point") {
     return threePointChildOffset(grow.one, grow.left, grow.right, index, count);
   }
@@ -10056,10 +10107,12 @@ function fitReferencePoints(ref, env = {}) {
 }
 
 function addNodeItems(node, ir, env) {
-  return withDimensionFont(
+  const result = withDimensionFont(
     () => nodeDimensionFontSpec(node.options || {}, env),
     () => addNodeItemsWithFont(node, ir, env)
   );
+  if (node.petriItems) for (const child of node.petriItems) ir.items.push(child);
+  return result;
 }
 
 function addNodeItemsWithFont(node, ir, env) {
