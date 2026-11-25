@@ -7,8 +7,7 @@ import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
 import { fixedCapacitorItems, fixedCapacitorSettings } from "../extensions/circuitikz/capacitors.js";
 import { fixedResistorItem, fixedResistorSettings } from "../extensions/circuitikz/resistors.js";
-import { potentiometerBodyItem, potentiometerGeometry, potentiometerSettings } from "../extensions/circuitikz/potentiometers.js";
-import { potentiometerWiperItems } from "../extensions/circuitikz/wiperArrow.js";
+import { resistorModifierSpec, resistorWithModifier } from "../extensions/circuitikz/resistorModifiers.js";
 import { roundTerminalSettings } from "../extensions/circuitikz/roundTerminals.js";
 import { passiveLabelLayout } from "../extensions/circuitikz/passiveLabels.js";
 import { withCircuitikzKeys } from "../extensions/circuitikz/settings.js";
@@ -1586,7 +1585,8 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathEnv = {
     ...optionEnv,
     circuitikz: withCircuitikzKeys(env.circuitikz, statementTransformOptions),
-    pathInk: { stroke: normalized.strokeInk, fill: normalized.fillInk },
+    pathInk: { stroke: normalized.strokeInk, fill: normalized.fillInk,
+      current: normalized.semantic["tikzkit current color"] ?? "black" },
     pathLet: { points: {}, numbers: {} },
     variables: { ...(env.variables || {}) },
     transform: pathPlane?.transform || pathTransform,
@@ -2940,36 +2940,36 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, fromRef,
   let passiveBody = null;
   if (spec.kind === "short") {
     commands.push(lineToCommand(wire.to));
-  } else if (spec.kind === "potentiometer") {
-    const kind = spec.region ?? keys?.["resistor/kind"] ?? "american";
-    const settings = potentiometerSettings(kind, keys, env.variables, nodeCanvasScale(options, env));
+  } else if (spec.kind === "resistorWithModifier") {
     const inverted = tikzBoolean(options.invert ?? options.inverted);
     const mirrored = tikzBoolean(options.mirror ?? options.mirrored);
-    const shape = potentiometerGeometry(geometry, settings, inverted, mirrored);
-    const { left, right } = shape.anchors;
-    const split = splitWire(settings.bodyLength, inverted ? { start: right, end: left } : { start: left, end: right });
     // Like a TikZ node, the component paints even on a non-stroking parent path.
     // A local pen changes the body, not the leads; the head uses PGF's fill ink.
-    const color = keys?.color && keys.color !== "none" ? normalizeColor(String(keys.color)) : undefined;
+    const local = normalizeOptions("draw", localToOptions ?? {}, env);
+    const color = local.semantic["tikzkit current color"] ??
+      (keys?.color && keys.color !== "none" ? normalizeColor(String(keys.color)) : undefined);
     const bodyStyle = { ...pathStyle, stroke: color ?? env.pathInk?.stroke ?? pathStyle.stroke };
     if (Object.keys(localToOptions || {}).some(optionSetsLineWidth)) {
-      bodyStyle.lineWidth = scaleCanvasStyle(normalizeOptions("draw", localToOptions, env).style, env).lineWidth;
+      bodyStyle.lineWidth = scaleCanvasStyle(local.style, env).lineWidth;
     }
-    const wiperSettings = { ...settings, color, wiperHeadFill: env.pathInk?.fill, canvasScale: canvasLengthScale(env),
-      wiperStartArrow: keys?.["wiper start arrow"], wiperEndArrow: keys?.["wiper end arrow"] };
-    shapes.push(potentiometerBodyItem(geometry, settings, bodyStyle, circuitikzComponentFill(options), inverted, mirrored),
-      ...potentiometerWiperItems(shape, wiperSettings, bodyStyle));
+    const shape = resistorWithModifier(spec, geometry, { keys: keys ?? {}, variables: env.variables, color, inverted, mirrored,
+      shapeScale: nodeCanvasScale(options, env), canvasScale: canvasLengthScale(env),
+      style: bodyStyle, fill: circuitikzComponentFill(options), headFill: env.pathInk?.fill,
+      currentColor: env.pathInk?.current });
+    const { left, right } = shape.anchors;
+    const split = splitWire(shape.bodyLength, inverted ? { start: right, end: left } : { start: left, end: right });
+    shapes.push(...shape.items);
     if (split.postLead) shapes.push(split.postLead);
     if (spec.name) {
       const name = resolveDynamicName(spec.name, env);
-      env.nodes[name] = { shape: "circuitikzPotentiometer", point: shape.anchors.center, width: settings.bodyLength,
+      env.nodes[name] = { shape: shape.nodeShape, point: shape.anchors.center, width: shape.bodyLength,
         height: shape.labelHalfNormal.positive + shape.labelHalfNormal.negative,
         rotation: Math.atan2(geometry.u.y, geometry.u.x) * 180 / Math.PI,
         shapeData: { savedAnchors: shape.anchors } };
       env.coordinates[name] = shape.anchors.center;
       for (const [anchor, point] of Object.entries(shape.anchors)) env.coordinates[`${name}.${anchor}`] = point;
     }
-    passiveBody = { bodyLength: settings.bodyLength, halfNormal: shape.labelHalfNormal.positive,
+    passiveBody = { bodyLength: shape.bodyLength, halfNormal: shape.labelHalfNormal.positive,
       halfNormalBelow: shape.labelHalfNormal.negative };
   } else if (spec.kind === "resistor") {
     const kind = options["european resistor"] !== undefined ? "european"
@@ -3065,11 +3065,8 @@ function circuitikzPackageSettings(packages = []) {
 
 function circuitikzBipoleSpec(options = {}, env = {}) {
   const name = circuitikzComponentName(options);
-  const pot = circuitikzFirstMatchingOption(options, /^(?:pR|(?:(?:american|european) )?potentiometer)$/);
-  if (pot) {
-    const region = pot.key.includes(" ") ? pot.key.split(" ")[0] : null;
-    return { kind: "potentiometer", label: pot.label, name, region };
-  }
+  const modified = resistorModifierSpec(options);
+  if (modified) return { ...modified, name };
   const resistorLabel = circuitikzFirstLabel(options, ["R", "resistor", "american resistor", "european resistor"]);
   if (resistorLabel !== null) return { kind: "resistor", label: resistorLabel, name };
   // `vC` is case-sensitive at the Circuitikz level: it is a tunable capacitor,

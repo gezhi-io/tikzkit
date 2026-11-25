@@ -1,0 +1,18 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american]
+    \ctikzset{european resistors}
+    \draw[blue] (0,0) to[vR, name=V, mirror] (2.4,.9)
+        to[sR, name=S, mirror] (4.8,1.8);
+    \draw[magenta] (V.wiper) circle (.55mm);
+    \draw[green!50!black] (S.tip) circle (.55mm);
+    \ctikzset{bipoles/fix tunable direction=false}
+    \draw[draw=red] (0,-1.8) to[vR, name=E, mirror, fill=blue!65!white] (2.4,-.9);
+    \draw[orange] (E.W) circle (.55mm);
+    \draw[violet] (E.tip) circle (.55mm);
+    \ctikzset{american resistors}
+    \draw[red] (2.4,-.9) to[vR, mirror] (4.8,0);
+    \draw (0,-3.2) to[R] (2.4,-3.2);
+\end{circuitikz}
+\end{document}

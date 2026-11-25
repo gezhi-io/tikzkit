@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american]
+    \draw (0,2) to[vR] ++(2,0) to[sR] ++(2,0);
+    \ctikzset{resistors/thickness=4}
+    \draw (0,1) to[vR] ++(2,0) to[sR] ++(2,0);
+    \ctikzset{resistors/modifier thickness=0.5}
+    \draw (0,0) to[vR] ++(2,0) to[sR] ++(2,0);
+\end{circuitikz}
+\end{document}

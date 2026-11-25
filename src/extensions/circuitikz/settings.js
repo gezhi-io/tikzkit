@@ -8,12 +8,14 @@ const keys = new Set(["bipoles/length", "bipoles/thickness", "bipoles/border mar
   "capacitors/fill", "bipoles/resistor/width", "bipoles/resistor/height", "bipoles/generic/width",
   "bipoles/generic/height", "resistors/zigs", "resistors/zigzag stub", "resistors/scale",
   "resistors/thickness", "resistors/fill", "resistors/modifier thickness", "wiper start arrow", "wiper end arrow",
+  "bipoles/fix tunable direction", "tunable start arrow", "tunable end arrow", "bipoles/thermistor/main",
   "label distance", "label/align",
   "nodes width", "open poles fill", "poles/open fill opacity", "poles/full fill opacity", "color",
   "sources/scale", "current arrow scale", "voltage/shift", "voltage/bump a",
   "voltage/european label distance", "voltage/straight label distance", "voltage shift sources adjust"]);
 const sourceKey = /^bipoles\/(?:vsource|dcvsource|vsourcesin|vsourcesquare|vsourcetri)\/(?:width|height|voltage\/(?:bump a|additional shift|european label distance|straight label distance))$/;
 const potentiometerKey = /^bipoles\/(?:generic )?potentiometer\/(?:width|height|height 2|wiper pos)$/;
+const diagonalResistorKey = /^bipoles\/(?:vresistor|tgeneric|resistivesens|thermistor)\/(?:width|height)$/;
 
 export function withCircuitikzKeys(state, options) {
   let result = state;
@@ -34,7 +36,7 @@ export function withCircuitikzKeys(state, options) {
     if (key.endsWith("/.initial") && sourceKey.test(key.slice(0, -9))) key = key.slice(0, -9);
     if (key === "capacitors/width") key = "bipoles/capacitor/width";
     if (key === "capacitors/height") key = "bipoles/capacitor/height";
-    // pgfcircbipoles.tex sets both regional registers at the point the class
+    // pgfcircbipoles.tex sets each family register at the point the class
     // key is executed. A later component-specific setting overrides just one.
     if (key === "resistors/width" || key === "wiper pos") {
       if (result === state) result = { ...state };
@@ -42,6 +44,7 @@ export function withCircuitikzKeys(state, options) {
       result["bipoles/potentiometer/" + field] = stored;
       result["bipoles/generic potentiometer/" + field] = stored;
       if (key === "wiper pos") continue;
+      for (const shape of ["vresistor", "tgeneric", "resistivesens", "thermistor"]) result["bipoles/" + shape + "/width"] = stored;
       result["bipoles/generic/width"] = stored;
       key = "bipoles/resistor/width";
     }
@@ -60,7 +63,7 @@ export function withCircuitikzKeys(state, options) {
                (key === "voltage" && ["straight", "european", "curved"].includes(value))) {
       stored = key === "straight voltages" || value === "straight" ? "straight" : "european";
       key = "voltage/generator label mode";
-    } else if (!keys.has(key) && !sourceKey.test(key) && !potentiometerKey.test(key)) continue;
+    } else if (!keys.has(key) && !sourceKey.test(key) && !potentiometerKey.test(key) && !diagonalResistorKey.test(key)) continue;
     if (result === state) result = { ...state };
     result[key] = stored;
   }

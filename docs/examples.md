@@ -94,6 +94,23 @@ See the [standalone source with three slider settings](../test/fixtures/native-c
 and the [browser and native comparison](qa/2026-11-25-circuitikz-potentiometers.md).
 This example requires the GitHub version.
 
+## Variable Resistors and Sensors
+
+`vR` draws an adjustable resistor with a diagonal arrow; `sR` draws a sensor
+with a bent bar. The component's name lets later wires use its saved contacts:
+
+```tex
+\begin{circuitikz}[european]
+  \draw (0,0) to[vR, name=V] (2,0) to[sR, name=S] (4,0);
+  \draw[blue] (V.wiper) -- ++(0,-0.6);
+  \node[below] at (S.label) {$T$};
+\end{circuitikz}
+```
+
+Switch to `[american]` for zigzag bodies. The [original manual example](../test/fixtures/native-circuitikz-resistor-modifiers/manual-thickness.tex)
+shows how to vary the modifier thickness independently of the body.
+See the [browser/native comparison](qa/2026-11-25-circuitikz-resistor-modifiers.md) for this GitHub version.
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

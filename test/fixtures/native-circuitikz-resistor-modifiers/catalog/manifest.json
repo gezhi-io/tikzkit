@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"manual-thickness","title":"Manual: modifier and resistor thickness","source":"../manual-thickness.tex"},
+    {"id":"angled-anchors","title":"Mirrored modifiers: European anchors and old tunable direction","source":"../angled-anchors.tex"}
+  ]
+}
