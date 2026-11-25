@@ -121,6 +121,9 @@ function setParsedOption(options, key, value) {
     options[key] = [...optionValues(options[key]), value];
     return;
   }
+  // Reassignment alone retains a JS key's first position. TeX executes the
+  // final scalar assignment where it occurs (e.g. opacity after draw opacity).
+  if (Object.hasOwn(options, key)) delete options[key];
   options[key] = value;
 }
 

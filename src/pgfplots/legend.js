@@ -10,7 +10,7 @@ import {
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
-import { plotFillOpacityOption, selectPlotFillStyle, selectPlotStyle } from "./plotStyle.js";
+import { selectPlotStyle } from "./plotStyle.js";
 import { filledLegendImage } from "./legendImages.js";
 import { cmMathMetrics } from "../tex/cmMathMetrics.js";
 import { layoutLineLegend, legendDimensionFont } from "./legendMatrix.js";
@@ -173,21 +173,19 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
     const labelX = legendCellAnchorX(textX, textRight, cellAnchor);
     const plot = addplots[index];
     const image = filledImages[index];
-    const plotHasFill = Object.prototype.hasOwnProperty.call(plot?.options || {}, "fill");
     const imageStyle = joinOptions([
       "axis legend image",
-      selectPlotStyle(plot?.options || {}, index),
-      image && plotHasFill ? selectPlotFillStyle(plot.options, index) : "",
-      image ? plotFillOpacityOption(plot?.options || {}) : "",
-      image && plot?.options?.["draw opacity"] !== undefined ? `draw opacity=${plot.options["draw opacity"]}` : "",
-      image && plot?.options?.opacity !== undefined ? `opacity=${plot.options.opacity}` : "",
-      axisOptions.thick ? "thick" : ""
+      image ? image.ink.style : selectPlotStyle(plot?.options || {}, index),
+      !image && axisOptions.thick ? "thick" : ""
     ]);
     if (image) {
       const origin = cell ? x0 : x0 - image.bounds.minX;
       for (const { minX, maxX, minY, maxY } of image.rects) {
         const corners = [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]];
         commands.push(`\\draw[${imageStyle}] ${corners.map(([x, dy]) => point({ x: origin + x, y: y + dy })).join(" -- ")} -- cycle;`);
+      }
+      for (const mark of image.marks) {
+        commands.push(renderPlotMark({ x: origin + mark.x, y: y + mark.y }, plot.options, index, image.ink.mark));
       }
     } else if (!plot?.options?.["only marks"]) {
       commands.push(`\\draw[${imageStyle}] ${point({ x: x0, y })} -- ${point({ x: x1, y })};`);

@@ -101,6 +101,11 @@ texPackage.features.push("ordinary grouped coordinate bars with physical or comp
 texPackage.localSourceReviewedExtra += "; pgfplots.code.tex:888-901,3401-3491,4875-4927; pgfplotsplothandlers.code.tex:414-491; pgfplotscoordprocessing.code.tex:364-378,2745,7320ff; pgfplotsticks.code.tex:460-496,1140-1148; pgflibraryplothandlers.code.tex:380ff; reviewed 2026-11-21";
 texPackage.registryNoteSuffixLatest += " Ordinary grouped xbar/ybar coordinates now share a projected width, series shift, clipped zero baseline and point-meta label position. Native category tick direction and enlarged-box descriptions are checked in four live editor cases (28 bars). Interval/stacked grouping, custom metadata callbacks, and error-bar placement are not covered by this slice. Evidence: docs/qa/2026-11-21-grouped-bars.md.";
 
+texPackage.implementedBy += "; src/pgfplots/filledPlotPaint.js:filledPlotPaint; src/pgfplots/legendImages.js:includeLegendMark";
+texPackage.features.push("ordinary bar and legend ink, opacity and surveyed bar marks");
+texPackage.localSourceReviewedExtra += "; pgfplots.code.tex:3370-3400,5843-5851; pgflibraryplothandlers.code.tex:405-436; tikz.code.tex:242-274,507-531; reviewed 2026-11-25";
+texPackage.registryNoteSuffixLatest += " Ordinary xbar/ybar data and legend samples now preserve hollow vs filled paint, independent inks and opacity, and surveyed marker positions. Native legend paths restart their stroke, including fill-only series. Five live comparisons cover 34 data bars and 13 data marks; custom legend code and patterned paint remain partial. Evidence: docs/qa/2026-11-25-bar-paint.md.";
+
 texPackage.implementedBy += "; src/pgfplots/bars.js:sampleFunctionBars; src/pgfplots/addplotLowering.js:renderAddplot (marker pass)";
 texPackage.features.push("ordinary sampled function bars and the 2D global/individual plot-marker paint phases");
 texPackage.localSourceReviewedExtra += "; pgfplotscoordprocessing.code.tex:5474-5558; pgfplots.markers.code.tex:34-108; pgfplots.code.tex:9642-9652; reviewed 2026-11-21";

@@ -1,0 +1,15 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[ybar,bar width=8pt,width=9cm,height=6cm,xmin=.5,xmax=2.5,ymin=0,ymax=7,
+  enlargelimits=false,xtick={1,2},legend pos=north west,legend columns=2]
+  \addplot coordinates {(1,2) (2,4)};
+  \addplot+[orange,mark=*] coordinates {(1,3) (2,2)};
+  \addplot+[draw=purple] coordinates {(1,2) (2,3)};
+  \addplot[draw=blue,fill] coordinates {(1,4) (2,1)};
+  \legend{Cycle,Color,Pen,Bare fill}
+\end{axis}
+\end{tikzpicture}
+\end{document}

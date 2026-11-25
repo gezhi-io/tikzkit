@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+% PGFPlots manual: pgfplots.reference.2dplots.tex, xbar.
+\begin{axis}
+  \addplot+ [xbar] coordinates {(4,0) (1,1) (2,2) (5,3) (6,4) (1,5)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

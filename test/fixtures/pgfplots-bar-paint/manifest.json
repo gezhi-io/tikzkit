@@ -1,0 +1,29 @@
+{
+  "cases": [
+    {
+      "id": "manual-vertical",
+      "source": "manual-vertical.tex",
+      "title": "Manual: a per-series vertical bar handler"
+    },
+    {
+      "id": "manual-horizontal",
+      "source": "manual-horizontal.tex",
+      "title": "Manual: a per-series horizontal bar handler"
+    },
+    {
+      "id": "grouped-ink",
+      "source": "grouped-ink.tex",
+      "title": "Outline, fill-only and translucent bars with their legend"
+    },
+    {
+      "id": "horizontal-ink",
+      "source": "horizontal-ink.tex",
+      "title": "Horizontal bars: current fill color and ordered opacity"
+    },
+    {
+      "id": "cycle-ink",
+      "source": "cycle-ink.tex",
+      "title": "Cycle fill, replacement color, replacement pen and bare fill"
+    }
+  ]
+}

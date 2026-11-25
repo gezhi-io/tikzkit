@@ -45,16 +45,16 @@ export function scatterClassOptionsForPoint(options = {}, point = {}) {
   return options;
 }
 
-export function renderPlotMark(point, options = {}, plotIndex = 0) {
+export function renderPlotMark(point, options = {}, plotIndex = 0, inks) {
   const mark = String(options.mark || (options.scatter ? "*" : "*")).trim().toLowerCase();
   const localOptions = plotMarkLocalOptions(options);
   const effectiveOptions = { ...options, ...localOptions };
   const mappedColor = String(options["pgfplots scatter mapped color"] || "").trim();
-  const defaultStroke = mappedColor ? `${mappedColor}!80!black` : plotColorValue(selectPlotColor(options, plotIndex));
-  const defaultFill = mappedColor || plotColorValue(selectPlotMarkFillColor(options, plotIndex));
+  const defaultStroke = mappedColor ? `${mappedColor}!80!black` : inks?.stroke ?? plotColorValue(selectPlotColor(options, plotIndex));
+  const defaultFill = mappedColor || (inks?.fill ?? plotColorValue(selectPlotMarkFillColor(options, plotIndex)));
   const stroke = localMarkColor(localOptions, "draw", defaultStroke);
   const fill = localMarkColor(localOptions, "fill", defaultFill);
-  const localPaint = plotMarkPaintOptions(localOptions);
+  const localPaint = [...(inks?.alpha || []), ...plotMarkPaintOptions(localOptions)];
   const lineWidth = plotLineWidthOption(localOptions) || plotLineWidthOption(options);
   const clipOption = plotMarkClipOption(options);
   const size = axisMarkRadius(effectiveOptions);

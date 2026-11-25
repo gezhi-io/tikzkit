@@ -6,10 +6,11 @@ import { pathToFileURL } from "node:url";
 import { compareDecodedPngs, composeImageSheet, cropWithWhiteMargin, decodePng, encodePng } from "./diff-example-pngs.js";
 
 const [directory, playwrightModule, ...args] = process.argv.slice(2);
-const ids = args.filter(arg => arg !== "--solid-paint");
+const ids = args.filter(arg => !["--solid-paint", "--bar-ink"].includes(arg));
 const checkPaint = args.includes("--solid-paint");
-assert.ok(directory && playwrightModule, "Usage: node scripts/measure-grouped-bars.mjs <audit-dir> <playwright-module> [--solid-paint] [case ...]");
-async function measure() {
+const checkInk = args.includes("--bar-ink");
+assert.ok(directory && playwrightModule, "Usage: node scripts/measure-grouped-bars.mjs <audit-dir> <playwright-module> [--solid-paint] [--bar-ink] [case ...]");
+async function measure(includeInk) {
   await document.fonts.ready;
   const elements = [...document.querySelectorAll("path,text,use")].filter(el => !el.closest("defs,symbol,clipPath"));
   const paths = elements.filter(el => el.localName === "path");
@@ -37,6 +38,31 @@ async function measure() {
   const pt = 72.27 / 96;
   const rel = (x,y) => [(x-frame.x)*pt, (y-frame.y-frame.h)*pt];
   const result = { fills:[], strokes:[], glyphs:[], titles:[], ticks:[], pens:[], colors:[], glyphColors:[] };
+  if (includeInk) {
+    // A hollow, fill-only or black bar is meaningful. Compare the two paint
+    // channels independently: PDF may emit them in two different paths.
+    const ink = {};
+    function record(role, el, x, y, w, h) {
+      const s = getComputedStyle(el), m = el.getScreenCTM(), unit = Math.hypot(m.a,m.b)*pt;
+      let opacity = 1;
+      for (let parent=el; parent; parent=parent.parentElement) opacity *= Number(getComputedStyle(parent).opacity);
+      for (const channel of ["fill","stroke"]) {
+        if (s[channel] === "none") continue;
+        const key = [inPlot(el) ? "data" : "legend", role, channel].join("/");
+        const item = {box:[...rel(x,y),w*pt,h*pt], rgb:rgb(s[channel]), alpha:opacity*Number(s[channel+"Opacity"])};
+        if (channel === "stroke") Object.assign(item, {pen:parseFloat(s.strokeWidth)*unit, cap:s.strokeLinecap,
+          join:s.strokeLinejoin, dash:(s.strokeDasharray.match(/[\d.e+\-]+(?=px)/gi) || []).map(v => Number(v)*unit)});
+        (ink[key] ??= []).push(item);
+      }
+    }
+    for (const r of closed) if (r.el !== frame.el && r.el !== legend) record("bar",r.el,r.x,r.y,r.w,r.h);
+    for (const el of paths) {
+      if (!/C[^Z]+Z/i.test(el.getAttribute("d"))) continue;
+      const b = el.getBoundingClientRect();
+      record("mark",el,b.x,b.y,b.width,b.height);
+    }
+    result.ink = ink;
+  }
   for (const paint of ["fill","stroke"]) {
     for (const r of closed.filter(r => inPlot(r.el) && colored(getComputedStyle(r.el)[paint]))) {
       const style = getComputedStyle(r.el);
@@ -63,6 +89,25 @@ async function measure() {
 }
 
 const maxError = (a,b) => a.length === b.length ? Math.max(0, ...a.map((v,i) => Math.abs(v-b[i]))) : null;
+
+function compareInk(actual, reference) {
+  const out = {counts:{}, countErrors:0, bounds:0, rgb:0, alpha:0, pen:0, dash:0, styleErrors:0};
+  for (const key of new Set([...Object.keys(reference), ...Object.keys(actual)])) {
+    const a = actual[key] || [], b = reference[key] || [];
+    out.counts[key] = b.length;
+    out.countErrors += Math.abs(a.length-b.length);
+    for (let i=0; i<Math.min(a.length,b.length); i++) {
+      for (const [metric,attr] of [["bounds","box"],["rgb","rgb"],["dash","dash"]]) {
+        const e = maxError(a[i][attr] || [], b[i][attr] || []);
+        if (e === null) out.styleErrors++;
+        else out[metric] = Math.max(out[metric],e);
+      }
+      for (const k of ["alpha","pen"]) out[k] = Math.max(out[k],Math.abs((a[i][k] || 0)-(b[i][k] || 0)));
+      if (a[i].cap !== b[i].cap || a[i].join !== b[i].join) out.styleErrors++;
+    }
+  }
+  return out;
+}
 
 // Bounds alone cannot detect a later bar covering an earlier mark. Probe
 // opaque, flat color interiors on the registered reference; ignore antialiasing.
@@ -100,10 +145,11 @@ try {
     const measures = [];
     for (const panel of panels) {
       await page.setContent('<style>body{margin:0}svg{display:block}</style>' + await readFile(path.join(directory,panel.svg), "utf8"));
-      measures.push(await page.evaluate(measure));
+      measures.push(await page.evaluate(measure,checkInk));
     }
     const ref = measures[1];
-    assert.ok(ref.fills.length && ref.strokes.length === ref.fills.length, id + ": empty reference bars");
+    if (checkInk) assert.ok(ref.ink["data/bar/stroke"]?.length || ref.ink["data/bar/fill"]?.length, id + ": missing reference bars");
+    else assert.ok(ref.fills.length && ref.strokes.length === ref.fills.length, id + ": empty reference bars");
     const crops = [];
     let scale;
     for (const [i,m] of measures.entries()) {
@@ -114,7 +160,8 @@ try {
       crops.push(cropWithWhiteMargin(image,x,y,Math.ceil(ref.viewport[0]*scale),Math.ceil(ref.viewport[1]*scale)));
       if (i === 1) continue;
       const fields = ["size","fills","strokes","glyphs","titles","ticks","pens","colors","glyphColors"];
-      results.push({id, panel:panels[i].title, bars:ref.fills.length, glyphCount:ref.glyphs.length,
+      results.push({id, panel:panels[i].title, glyphCount:ref.glyphs.length,
+        ...(checkInk ? {ink:compareInk(m.ink,ref.ink)} : {bars:ref.fills.length}),
         ...Object.fromEntries(fields.map(k => [k,maxError(m[k].flat(),ref[k].flat())]))});
       const outliers = m.ticks.flatMap(([x,y],j) => ref.ticks[j] &&
         Math.max(Math.abs(x-ref.ticks[j][0]),Math.abs(y-ref.ticks[j][1])) > .1
@@ -136,6 +183,11 @@ assert.ok(results.length && ids.every(id => results.some(r => r.id === id)), "Mi
 await writeFile(path.join(directory,"bar-metrics.json"),JSON.stringify(results,null,2)+"\n");
 console.table(results);
 for (const r of results.filter(r => !r.panel.startsWith("Before"))) {
+  if (checkInk) {
+    for (const [k,limit] of Object.entries({countErrors:0,styleErrors:0,bounds:.1,rgb:1,alpha:.002,pen:.01,dash:.015})) {
+      assert.ok(r.ink[k] <= limit, `${r.id}/${r.panel}/ink/${k}: ${r.ink[k]}`);
+    }
+  }
   if (checkPaint) assert.ok(r.solidPixels > 0 && r.wrongPaint === 0,
     `${r.id}/${r.panel}: ${r.wrongPaint} of ${r.solidPixels} interior colors differ`);
   for (const key of ["size","fills","strokes","glyphs","titles","ticks","pens","colors","glyphColors"]) {

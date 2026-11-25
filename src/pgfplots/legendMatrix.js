@@ -4,10 +4,9 @@ import { TIKZ_UNIT } from "../tikz/metrics.js";
 import { estimateFormulaBox, parseMathText } from "../tikz/textMetrics.js";
 import { createFontSpec, parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeMixedText, layoutNativeText } from "../tex/textBox.js";
-import { axisMarkRadius, shouldRenderPlotMarks } from "./marks.js";
-import { legendHalfPen } from "./legendImages.js";
-import { basicPlotMarkGeometry, plotMarkGeometryCommands, plotMarkLocalOptions, transformPlotMarkCommands } from "../tikz/libraries/plotmarks.js";
-import { emptyBoundingBox, includePoint, includePathCommandBounds } from "../scene/bbox.js";
+import { shouldRenderPlotMarks } from "./marks.js";
+import { includeLegendMark, legendHalfPen } from "./legendImages.js";
+import { emptyBoundingBox, includePoint } from "../scene/bbox.js";
 
 const PT_PER_CM = 72.27 / 2.54;
 const IMAGE_WIDTH = 0.6;
@@ -20,17 +19,7 @@ function lineImageBounds(options, index, thick) {
     includePoint(bounds, { x: IMAGE_WIDTH + pen, y: pen });
   }
   if (shouldRenderPlotMarks(options)) {
-    const center = { x: IMAGE_WIDTH / 2, y: 0 };
-    const local = plotMarkLocalOptions(options);
-    const size = axisMarkRadius({ ...options, ...local });
-    const mark = String(options.mark || "*").toLowerCase();
-    const shape = basicPlotMarkGeometry(mark, size) ??
-      (["*", "o"].includes(mark) ? { primitives: [{ type: "circle", radius: size }] } : null);
-    if (!shape || options["tikzkit plot mark declarations"]?.[mark]) return null;
-    // Stock marks use PGF quick paint: the marker path, not its pen width,
-    // contributes to the cell. The unused plot coordinates contribute nothing.
-    const commands = transformPlotMarkCommands(plotMarkGeometryCommands(shape, center), center, local);
-    includePathCommandBounds(commands, (x, y) => includePoint(bounds, { x, y }));
+    if (!includeLegendMark(bounds, options, { x: IMAGE_WIDTH / 2, y: 0 })) return null;
   }
   if (!Number.isFinite(bounds.minX)) includePoint(bounds, { x: 0, y: 0 });
   return bounds;

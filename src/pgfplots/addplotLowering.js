@@ -1,5 +1,6 @@
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { createBarLayout, isAxisBarPlot, renderAxisBars } from "./bars.js";
+import { filledPlotPaint } from "./filledPlotPaint.js";
 import { isAxisCombPlot, renderAxisComb } from "./comb.js";
 import { renderPlotMark, scatterClassOptionsForPoint, shouldRenderPlotMarks } from "./marks.js";
 import { renderAxisPlotInlineNodes, renderNodesNearCoords } from "./plotNodes.js";
@@ -78,6 +79,11 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const layout = createBarLayout(axisOptions, plot.options, geometry, barAxis, ranges, plot.barGroup);
       const clip = plot.barGroup ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
       commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip));
+      if (shouldRenderPlotMarks(plot.options)) {
+        // PGF marks the surveyed coordinate, not the shifted bar rectangle.
+        (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry,
+          plotIndex, filledPlotPaint(plot.options, axisOptions).mark));
+      }
       (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex, layout));
       return commands;
     }
@@ -293,7 +299,7 @@ function pgfplotsPlotClipOption(axisOptions = {}, geometry = {}) {
   return `tikzkit clip rect={${minX},${minY},${maxX},${maxY}}`;
 }
 
-function renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex) {
+function renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex, inks) {
   const clipMarkersIn2d = !plot.is3d && pgfplotsClipEnabled(axisOptions);
   const clipRanges = axisPlotClipRanges(ranges, geometry);
   const accepted = clipMarkersIn2d
@@ -305,7 +311,7 @@ function renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, pl
     const pointOptions = plot.options.scatter
       ? scatterClassOptionsForPoint(plot.options, dataPoint)
       : plot.options;
-    return renderPlotMark(point, clipOption ? { ...pointOptions, "tikzkit clip rect": clipOption } : pointOptions, plotIndex);
+    return renderPlotMark(point, clipOption ? { ...pointOptions, "tikzkit clip rect": clipOption } : pointOptions, plotIndex, inks);
   });
 }
 

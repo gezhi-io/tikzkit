@@ -1,0 +1,10 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "manual-vertical",
+    "manual-horizontal",
+    "grouped-ink",
+    "horizontal-ink",
+    "cycle-ink"
+  ]
+}

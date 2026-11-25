@@ -57,6 +57,8 @@ export function mergePgfplotsOptionMaps(target = {}, source = {}) {
       merged[key] = [...optionValues(merged[key]), ...optionValues(value)];
       continue;
     }
+    // An author option overriding a cycle/style key executes after that style.
+    if (Object.hasOwn(merged, key)) delete merged[key];
     merged[key] = value;
   }
   return merged;

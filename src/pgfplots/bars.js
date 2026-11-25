@@ -4,7 +4,7 @@ import { axisNumber } from "./coordinates.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./histogram.js";
-import { plotColorValue, selectPlotColor, selectPlotFillStyle } from "./plotStyle.js";
+import { filledPlotPaint } from "./filledPlotPaint.js";
 import { sampleFunctionDataPoints } from "./rangeResolver.js";
 import { pgfplotsStackAxis } from "./stackedPlots.js";
 
@@ -73,7 +73,7 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
   const renderedPoints = interval
     ? pgfplotsIntervalDataPoints({ points, options: plotOptions }, axisOptions, orientation)
     : points;
-  const style = joinOptions([axisBarStyle(plotOptions, plotIndex), clip]);
+  const style = joinOptions(["axis bar", filledPlotPaint(plotOptions, axisOptions).style, clip]);
   layout ??= createBarLayout(axisOptions, plotOptions, geometry, orientation, ranges);
   const limits = geometry.lineRanges || geometry.transformRanges || ranges;
   for (const [index, point] of renderedPoints.entries()) {
@@ -115,20 +115,6 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
     }
   }
   return commands;
-}
-
-function axisBarStyle(plotOptions, plotIndex) {
-  const color = plotColorValue(selectPlotColor(plotOptions, plotIndex));
-  const fill = plotOptions.fill && plotOptions.fill !== true
-    ? selectPlotFillStyle(plotOptions, plotIndex)
-    : `fill=${color}!30`;
-  const draw = String(plotOptions.draw || "").trim().toLowerCase();
-  const drawStyle = draw === "none" || draw === "false" || draw === "off"
-    ? "draw=none"
-    : plotOptions.draw && plotOptions.draw !== true
-      ? `draw=${plotOptions.draw}`
-      : `draw=${color}`;
-  return joinOptions(["axis bar", fill, drawStyle]);
 }
 
 export function createBarLayout(axis, options, geometry, direction, ranges, group) {

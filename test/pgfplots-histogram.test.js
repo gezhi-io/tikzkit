@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseTikz, tikzToSvg } from "../src/internal.js";
 import { renderAddplot } from "../src/pgfplots/addplotLowering.js";
+import { defaultPgfplotsBarCycleStyle } from "../src/pgfplots/plotStyle.js";
 import { parseAddplots } from "../src/pgfplots/addplotParser.js";
 import { isAxisBarPlot, renderAxisBars } from "../src/pgfplots/bars.js";
 import {
@@ -70,7 +71,7 @@ test("pgfplots interval bars use adjacent coordinates and ignore the terminal va
     { x: 4, y: 999 }
   ];
   const axisOptions = { "ybar interval": true, "enlarge x limits": false, "enlarge y limits": false };
-  const plot = { type: "coordinates", options: { "pgfplots plus": true }, points };
+  const plot = { type: "coordinates", options: defaultPgfplotsBarCycleStyle(0), points };
   const ranges = computeAxisRanges(axisOptions, [plot]);
   const bars = renderAxisBars(points, axisOptions, identityGeometry, plot.options, 0, "y", { ...ranges, yMin: 0 });
 
@@ -78,7 +79,7 @@ test("pgfplots interval bars use adjacent coordinates and ignore the terminal va
   assert.equal(bars.length, 3);
   assert.equal(
     bars[1],
-    String.raw`\draw[axis bar, fill=blue!30, draw=blue] (1,0) -- (3,0) -- (3,6) -- (1,6) -- cycle;`
+    String.raw`\draw[axis bar, fill=blue!30!white, draw=blue] (1,0) -- (3,0) -- (3,6) -- (1,6) -- cycle;`
   );
   assert.ok(!bars.some((command) => command.includes("999")));
 });

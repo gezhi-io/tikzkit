@@ -1,0 +1,17 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[xbar,bar width=9pt,width=10cm,height=6.5cm,
+  xmin=-2,xmax=6,ymin=.4,ymax=3.6,enlargelimits=false,ytick={1,2,3},
+  xmajorgrids,legend pos=south east]
+  \addplot[red,draw=blue,fill,line width=1pt,opacity=.6,fill opacity=.24]
+    coordinates {(-1,1) (2,2) (4,3)};
+  \addplot[draw=purple,fill=none,line join=round,line width=1.5pt,
+    dash pattern=on 3pt off 2pt,draw opacity=.2,opacity=.8]
+    coordinates {(3,1) (4,2) (5,3)};
+  \legend{Two colors,Outline}
+\end{axis}
+\end{tikzpicture}
+\end{document}
