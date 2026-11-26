@@ -42,7 +42,7 @@ function parseCoordinateRow(text, row, plotOptions, diagnostics) {
   while (i < text.length) {
     if (text[i] === "+" || text[i] === "-" || text[i] === "[") return invalid(i);
     if (text[i] !== "(") { i++; continue; }
-    const tuple = readPointArgument(text, i);
+    const tuple = readCoordinateTuple(text, i);
     if (!tuple) return invalid(i);
     i = tuple.end;
     const fields = tuple.fields;
@@ -82,6 +82,10 @@ function parseCoordinateRow(text, row, plotOptions, diagnostics) {
 
 // TeX braces protect delimiters, including a literal ']' in point meta.
 // Keep empty tuple fields: (,2) assigns a y error without inventing an x error.
+export function readCoordinateTuple(text, start) {
+  return text[start] === "(" ? readPointArgument(text, start) : null;
+}
+
 function readPointArgument(text, start) {
   const tuple = text[start] === "(", end = tuple ? ")" : "]";
   const fields = [], nested = [];

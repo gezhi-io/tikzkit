@@ -39,12 +39,15 @@ function lowerAxisOverlayStatement(statement, ranges, geometry) {
   return [transformAxisStatementCoordinates(statement, ranges, geometry)];
 }
 
-export function transformAxisStatementCoordinates(statement, ranges, geometry, origin) {
-  const resolvedStatement = String(statement).replace(/\\pgfkeysvalueof\s*\{\s*\/pgfplots\/([xyz])\s*(min|max)\s*\}/gi, (_match, axis, bound) => {
+export function expandAxisLimitKeys(statement, ranges) {
+  return String(statement).replace(/\\pgfkeysvalueof\s*\{\s*\/pgfplots\/([xyz])\s*(min|max)\s*\}/gi, (_match, axis, bound) => {
     const key = `${axis.toLowerCase()}${bound.toLowerCase() === "min" ? "Min" : "Max"}`;
     return Number.isFinite(ranges[key]) ? String(ranges[key]) : "0";
   });
-  const protectedText = protectOverlayMathText(resolvedStatement);
+}
+
+export function transformAxisStatementCoordinates(statement, ranges, geometry, origin) {
+  const protectedText = protectOverlayMathText(expandAxisLimitKeys(statement, ranges));
   const component = String.raw`(?:\{[^{}]*\}|[^,()[\]{}]+?)`;
   const coordinatePattern = new RegExp(
     String.raw`\(\s*(?:(normalized\s+axis\s+cs|rel\s+axis\s+cs|axis\s+description\s+cs|axis\s+direction\s+cs|axis\s+cs)\s*:\s*)?(${component})\s*,\s*(${component})(?:\s*,\s*(${component}))?\s*\)`,
@@ -57,25 +60,26 @@ export function transformAxisStatementCoordinates(statement, ranges, geometry, o
     const z = hasZ ? axisNumber(rawZ, NaN) : 0;
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return match;
     const normalizedCoordinateSystem = String(coordinateSystem || "").toLowerCase().replace(/\s+/g, " ").trim();
-    const point = normalizedCoordinateSystem === "axis direction cs"
-      ? mapAxisDirectionVector({ x, y, z }, ranges, geometry, hasZ)
-      : normalizedCoordinateSystem === "axis description cs"
-      ? typeof geometry.mapAxisDescriptionPoint === "function"
-        ? geometry.mapAxisDescriptionPoint({ x, y })
-        : {
-          x: geometry.origin.x + x * geometry.width,
-          y: geometry.origin.y + y * geometry.height
-        }
-      : normalizedCoordinateSystem === "normalized axis cs"
-      ? mapNormalizedAxisPoint({ x, y, z }, geometry, hasZ)
-      : normalizedCoordinateSystem === "rel axis cs"
-      ? mapRelativeAxisPoint({ x, y, z }, geometry, hasZ)
-      : mapAxisPoint({ x, y, z }, geometry, hasZ);
+    const point = mapAxisOverlayPoint(normalizedCoordinateSystem, { x, y, z }, ranges, geometry, hasZ);
     if (!point) return match;
     return formatAxisPoint(origin && normalizedCoordinateSystem !== "axis direction cs"
       ? { x: point.x - origin.x, y: point.y - origin.y } : point);
   });
   return restoreOverlayMathText(transformed, protectedText.values);
+}
+
+export function mapAxisOverlayPoint(system, point, ranges, geometry, hasZ = false) {
+  switch (system) {
+    case "axis direction cs": return mapAxisDirectionVector(point, ranges, geometry, hasZ);
+    case "axis description cs": return typeof geometry.mapAxisDescriptionPoint === "function"
+      ? geometry.mapAxisDescriptionPoint({ x: point.x, y: point.y })
+      : { x: geometry.origin.x + point.x * geometry.width, y: geometry.origin.y + point.y * geometry.height };
+    case "normalized axis cs": return mapNormalizedAxisPoint(point, geometry, hasZ);
+    case "rel axis cs": return mapRelativeAxisPoint(point, geometry, hasZ);
+    case "":
+    case "axis cs": return mapAxisPoint(point, geometry, hasZ);
+    default: return null;
+  }
 }
 
 function protectOverlayMathText(statement) {

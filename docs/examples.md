@@ -366,6 +366,17 @@ spline controls and step corners, even if the second path runs right to left.
 
 See the [four editable examples and browser/reference comparison](qa/2026-11-26-fill-between-boundaries.md).
 
+To shade just part of the curves, clip the fill boundaries, not the drawing.
+For example, this keeps both original strokes visible outside the window:
+
+```tex
+\path[name path=window] (axis cs:1,-1) rectangle (axis cs:3,4);
+\addplot[fill=teal!35] fill between[of=upper and lower,soft clip={name=window}];
+```
+
+Use `soft clip first` and `soft clip second` for different windows on the two
+boundaries. See the [three rectangular clipping examples](qa/2026-11-26-fill-between-rectangles.md).
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

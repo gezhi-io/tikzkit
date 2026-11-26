@@ -1,4 +1,5 @@
 import { createAddplotModel } from "./addplot.js";
+import { bindFillBetweenSurvey } from "./fillBetweenSurvey.js";
 import { createAxisGridModel } from "./grid.js";
 import { createAxisLabelModel } from "./labels.js";
 import { createPlotMarkModel } from "./marks.js";
@@ -6,7 +7,7 @@ import { createAxisRanges } from "./ranges.js";
 import { createAxisTickModel } from "./ticks.js";
 import { createDataToCanvasTransform } from "./transformDataToCanvas.js";
 
-export function createAxisModel({ axisOptions = {}, addplots = [], ranges = {}, geometry = {}, legendEntries = [] } = {}) {
+export function createAxisModel({ axisOptions = {}, addplots = [], ranges = {}, geometry = {}, legendEntries = [], renderOptions = {} } = {}) {
   const normalizedRanges = createAxisRanges(ranges);
   const dataToCanvas = createDataToCanvasTransform({ ranges: normalizedRanges, geometry, axisOptions });
   const plots = addplots.map((plot, index) => ({
@@ -14,14 +15,13 @@ export function createAxisModel({ axisOptions = {}, addplots = [], ranges = {}, 
     mark: createPlotMarkModel(plot.options || {}, axisOptions)
   }));
 
+  const modelGeometry = { ...geometry, mapPoint: geometry.mapPoint || dataToCanvas.mapPoint };
   return {
     type: "Axis",
     options: axisOptions,
     ranges: normalizedRanges,
-    geometry: {
-      ...geometry,
-      mapPoint: geometry.mapPoint || dataToCanvas.mapPoint
-    },
+    geometry: modelGeometry,
+    fillBetweenSurvey: bindFillBetweenSurvey(modelGeometry, addplots, axisOptions, renderOptions),
     ticks: createAxisTickModel(axisOptions, normalizedRanges, addplots, geometry),
     grid: createAxisGridModel(axisOptions),
     labels: createAxisLabelModel(axisOptions),

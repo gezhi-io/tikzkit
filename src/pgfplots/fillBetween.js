@@ -3,14 +3,19 @@ import { parseOptionalOptions } from "./addplotParser.js";
 import { axisViewportClipOption } from "./clipping.js";
 import { prepareFillBetweenPaths, joinFillBetweenPaths } from "./fillBetweenAssembly.js";
 import { namedFillBetweenBoundaries } from "./fillBetweenBoundaries.js";
-import { softClipFillBetweenBoundary } from "./fillBetweenSoftClip.js";
+import { explicitFillBetweenClipBox, fillBetweenClipSelector } from "./fillBetweenClipSelectors.js";
+import { namedFillBetweenClipBoxes } from "./fillBetweenNamedClips.js";
+import { clipFillBetweenBox } from "./fillBetweenSoftClip.js";
 import { splitFillBetweenRegions } from "./fillBetweenSplit.js";
+import { numericFillBetweenClipBox } from "./fillBetweenSurvey.js";
 import { formatAxisPathCommands, joinOptions } from "./format.js";
 
 export { splitXMonotoneFillBetweenPaths } from "./fillBetweenSplit.js";
 
-export function renderAxisFillBetween(body, addplots, axisOptions, ranges, geometry, options = {}) {
-  const fills = parsePgfplotsFillBetween(body);
+export function renderAxisFillBetween(body, addplots, axisOptions, ranges, geometry, options = {}, diagnostics = []) {
+  if (!/\bfill\s+between\b/.test(body || "")) return [];
+  const source = stripTexComments(body);
+  const fills = scanFillBetween(source);
   if (!fills.length) return [];
   const boundaries = namedFillBetweenBoundaries(body, addplots, axisOptions, ranges, geometry, options);
   const commands = [];
@@ -21,8 +26,9 @@ export function renderAxisFillBetween(body, addplots, axisOptions, ranges, geome
     // first segment (or add a moveto), so it must not change that decision.
     const prepared = prepareFillBetweenPaths(a, b, fill.options);
     const clips = boundaryClipOptions(fill.options);
-    const first = softClipFillBetweenBoundary(prepared.first, clips.first, ranges, geometry);
-    const second = softClipFillBetweenBoundary(prepared.second, clips.second, ranges, geometry);
+    const clipBoundary = axisBoundaryClipper(source, fill.sourceOffset, ranges, geometry, axisOptions, options, diagnostics);
+    const first = clipBoundary(prepared.first, clips.first);
+    const second = clipBoundary(prepared.second, clips.second);
     if (!first.length || !second.length) continue;
     const split = fillBetweenSplitEnabled(fill.options)
       ? splitFillBetweenRegions(first, second, prepared.reverse, fill.options) : null;
@@ -37,6 +43,32 @@ export function renderAxisFillBetween(body, addplots, axisOptions, ranges, geome
     }
   }
   return commands;
+}
+
+function axisBoundaryClipper(source, offset, ranges, geometry, axisOptions, options, diagnostics) {
+  const cache = new Map();
+  let named;
+  return (boundary, raw) => {
+    if (!raw) return boundary;
+    if (!cache.has(raw)) {
+      const selector = fillBetweenClipSelector(raw);
+      if (!selector) return boundary;
+      let box;
+      if (selector.kind === "domain") box = numericFillBetweenClipBox(selector.value, ranges, geometry, axisOptions);
+      if (selector.kind === "path") box = explicitFillBetweenClipBox(selector.value, ranges, geometry, axisOptions);
+      if (selector.kind === "name") {
+        named ??= namedFillBetweenClipBoxes(source.slice(0, offset), ranges, geometry, axisOptions, options);
+        box = named.get(selector.value);
+      }
+      // An unresolved window cannot mean the entire page. Keep the source
+      // strokes and report the skipped fill once even if both sides use it.
+      if (!box) diagnostics.push({ severity: "warning", code: "pgfplots-soft-clip-unresolved",
+        message: "Cannot resolve PGFPlots soft clip: " + raw });
+      cache.set(raw, box);
+    }
+    const box = cache.get(raw);
+    return box ? clipFillBetweenBox(boundary, box) : [];
+  };
 }
 
 function boundaryClipOptions(options) {
@@ -63,7 +95,10 @@ function parseFillBetweenOptions(raw) {
 
 export function parsePgfplotsFillBetween(body) {
   if (!/\bfill\s+between\b/.test(body || "")) return [];
-  const source = stripTexComments(body);
+  return scanFillBetween(stripTexComments(body));
+}
+
+function scanFillBetween(source) {
   const fills = [];
   const addplot = /\\addplot(?![a-zA-Z@])\s*\+?\s*/g;
   for (let match; (match = addplot.exec(source));) {
@@ -75,7 +110,7 @@ export function parsePgfplotsFillBetween(body) {
     addplot.lastIndex = group.end;
     const options = parseFillBetweenOptions(group.raw);
     const names = String(options.of || "").trim().match(/^(.+?)\s+and\s+(.+)$/);
-    if (names) fills.push({ first: names[1], second: names[2], options,
+    if (names) fills.push({ first: names[1], second: names[2], options, sourceOffset: match.index,
       plotOptions: parseOptions(paint.raw), plotOptionsSource: paint.raw.trim() });
   }
   return fills;

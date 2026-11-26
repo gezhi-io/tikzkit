@@ -141,7 +141,8 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     addplots,
     ranges,
     geometry,
-    legendEntries
+    legendEntries,
+    renderOptions: options
   });
   const axisReplayModel = createAxisReplayModel(axisModel);
   const axisOnTop = optionEnabled(axisModel.options["axis on top"]);
@@ -152,7 +153,8 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     axisModel.options,
     axisModel.ranges,
     axisModel.geometry,
-    options
+    options,
+    diagnostics
   );
   const commands = [renderAxisBounds(axisModel.geometry)];
   const axisBox = renderAxisBox(axisModel.options, axisModel.geometry);

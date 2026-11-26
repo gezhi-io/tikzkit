@@ -9157,6 +9157,30 @@
       "sourceCorpus": "TikZKit regression checked against native PGFPlots",
       "semanticOwner": "src/pgfplots/fillBetweenSoftClip.js",
       "features": ["fill between", "soft clip first", "soft clip second", "domain y"]
+    },
+    {
+      "id": "force-distance-rectangle",
+      "title": "Work under the force curve from x = 1 to 3",
+      "source": "fill-between-rectangles/force-distance-rectangle.tex",
+      "sourceCorpus": "Adapted from LaTeX-examples: force-distance-diagram",
+      "semanticOwner": "src/pgfplots/fillBetweenClipSelectors.js",
+      "features": ["fill between", "rectangular soft clip", "sampled function"]
+    },
+    {
+      "id": "independent-flipped-rectangles",
+      "title": "Two lines clipped by different rectangles",
+      "source": "fill-between-rectangles/independent-flipped-rectangles.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/fillBetweenSoftClip.js",
+      "features": ["fill between", "soft clip first", "soft clip second", "opposite directions"]
+    },
+    {
+      "id": "cubic-two-side-rectangle",
+      "title": "A single cubic meets two sides of one rectangle",
+      "source": "fill-between-rectangles/cubic-two-side-rectangle.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/fillBetweenSoftClip.js",
+      "features": ["fill between", "cubic controls", "rectangular soft clip"]
     }
   ]
 }

@@ -1,13 +1,13 @@
 import { parseOptions, stripOuterBraces } from "../engine/options.js";
-import { cubicBezierPoint, cubicExtremaParameters } from "../scene/bbox.js";
+import { curveToCommand, lineToCommand, moveToCommand } from "../engine/pathBuilder.js";
+import { PGF_SP } from "../engine/pgf-fixed-point.js";
+import { cubicBezierPoint, cubicExtremaParameters, emptyBoundingBox, includePoint } from "../scene/bbox.js";
 
 const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
 
-// PGFPlots adds 10% to the union of orthogonal axis and survey limits for
-// linear axes. AxisModel only passes resolved limits (explicit bounds can
-// hide data extrema). Use a strip, not a guessed rectangle: named overlays
-// beyond the native rectangle can survive. Arbitrary clip contours and TeX
-// expressions are not numeric domain selectors and leave the input alone.
+// Strip-only helper for callers that have no orthogonal data survey. Actual
+// PGFPlots axes resolve a finite numericFillBetweenClipBox and use the
+// whole-contour clipper below; sequential x/y strips are not equivalent.
 export function softClipFillBetweenBoundary(commands, value, ranges, geometry) {
   if (typeof value !== "string" || !value.trim()) return commands;
   const entries = Object.entries(parseOptions(stripOuterBraces(value)));
@@ -165,4 +165,169 @@ function sliceSegment(points, a, b) {
   ];
   const prefix = b === 1 ? points : splitCubic(points, b)[0];
   return a === 0 ? prefix : splitCubic(prefix, a / b)[1];
+}
+
+const TEX_PT = 2.54 / 72.27; // Scene cm.
+const TEX_SP = TEX_PT / PGF_SP;
+const HIT_TOLERANCE = 0.1 * TEX_PT;
+
+// A min/max box starts at its southwest corner. A resolver which knows the
+// authored corners can set flipX / flipY to start on the opposite side(s).
+// This is PGF soft clipping of a boundary, not geometric polygon intersection:
+// keep alternate segments of the original softpath, even at a tangent or a Z.
+export function clipFillBetweenBox(commands, box) {
+  if (!commands.length || box == null) return commands;
+  const { minX, maxX, minY, maxY } = box;
+  if (![minX, maxX, minY, maxY].every(Number.isFinite) || minX >= maxX || minY >= maxY) return [];
+  if (commands[0].type !== "moveTo" || !Number.isFinite(commands[0].x) || !Number.isFinite(commands[0].y)) return [];
+  const edges = boxEdges(box);
+  const unique = boxHitFilter();
+  let keep = firstInsideBox(commands[0], box, edges);
+  let current, start, keptMove, clipped = false;
+  const result = [];
+  for (const cmd of commands) {
+    if (cmd.type === "moveTo") {
+      if (!Number.isFinite(cmd.x) || !Number.isFinite(cmd.y)) return [];
+      current = start = cmd;
+      if (keep) { keptMove = cmd; result.push(cmd); }
+      continue;
+    }
+    const closing = cmd.type === "closePath", cubic = cmd.type === "curveTo";
+    if (!cubic && !closing && cmd.type !== "lineTo") return [];
+    const end = closing && cmd.x === undefined && cmd.y === undefined ? start : cmd;
+    if (!Number.isFinite(end.x) || !Number.isFinite(end.y)) return [];
+    let points;
+    const hits = [];
+    const add = (p, t) => { if (unique(p)) hits.push({ p, t }); };
+    if (cubic) {
+      if (![cmd.x1, cmd.y1, cmd.x2, cmd.y2].every(Number.isFinite)) return [];
+      points = [current, { x: cmd.x1, y: cmd.y1 }, { x: cmd.x2, y: cmd.y2 }, end];
+      const bounds = controlBounds(points);
+      for (const edge of edges) cubicBoxHits(points, bounds, edge.cubic, edge.bounds, add);
+      hits.sort((a, b) => a.t - b.t);
+    } else {
+      // With intersection sorting disabled PGF gives line hits only a segment
+      // index. Ties keep rectangle-edge order, even on a descending line.
+      for (const edge of edges) {
+        const p = lineBoxHit(current, end, edge);
+        if (p) add(p);
+      }
+    }
+    for (const { p, t } of hits) {
+      clipped = true;
+      if (cubic) {
+        const [left, right] = splitCubic(points, t); // Original time on the remaining controls.
+        if (keep) result.push(curveToCommand(left[1], left[2], left[3]));
+        right[0] = p;
+        points = right;
+      } else if (keep) result.push(lineToCommand(p));
+      keep = !keep;
+      if (keep) { keptMove = p; result.push(moveToCommand(p)); }
+    }
+    if (keep) {
+      if (cubic && hits.length) result.push(curveToCommand(points[1], points[2], points[3]));
+      else if (closing && keptMove !== start && end === start) result.push({ ...cmd, x: end.x, y: end.y });
+      else result.push(cmd);
+    }
+    current = end;
+  }
+  return !clipped && keep ? commands : result;
+}
+
+function boxEdges({ minX, maxX, minY, maxY, flipX, flipY }) {
+  const [x, X] = flipX ? [maxX, minX] : [minX, maxX];
+  const [y, Y] = flipY ? [maxY, minY] : [minY, maxY];
+  const corners = [{ x, y }, { x, y: Y }, { x: X, y: Y }, { x: X, y }];
+  return corners.map((a, i) => {
+    const b = corners[(i + 1) % 4];
+    const cubic = [a, edgeSupport(a, b), edgeSupport(b, a), b];
+    return { a, b, axis: a.x === b.x ? "x" : "y", cubic, bounds: controlBounds(cubic) };
+  });
+}
+
+// PGF promotes a line with .666666*A + .333333*B, multiplying the
+// dimensions separately. Exact mathematical thirds change the set of
+// hits (and hence the alternating runs) on an edge-coincident cubic.
+function edgeSupport(a, b) {
+  const third = Math.round(PGF_SP / 3) / PGF_SP;
+  const mix = (u, v) => (Math.trunc(Math.round(u / TEX_SP) * (1 - third)) +
+    Math.trunc(Math.round(v / TEX_SP) * third)) * TEX_SP;
+  return { x: mix(a.x, b.x), y: mix(a.y, b.y) };
+}
+
+// The native first-point test shoots a ray through the mean of the four
+// rectangle corners. A first solution at the start counts as outside.
+function firstInsideBox(p, { minX, minY, maxX, maxY }, edges) {
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const dx = cx - p.x, dy = cy - p.y, length = Math.hypot(dx, dy);
+  const reach = maxX - minX + (maxY - minY);
+  const to = { x: cx + reach * (length ? dx / length : 1), y: cy + reach * (length ? dy / length : 0) };
+  const unique = boxHitFilter();
+  const hits = edges.map(edge => lineBoxHit(p, to, edge)).filter(hit => hit && unique(hit));
+  return hits.length % 2 === 1 &&
+    Math.max(Math.abs(hits[0].x - p.x), Math.abs(hits[0].y - p.y)) >= HIT_TOLERANCE;
+}
+
+// pgf@iflinesintersect accepts extension past an endpoint only within .1pt
+// in the 1-norm. Parallel (including collinear) lines yield no solution.
+function lineBoxHit(p, q, { a, b, axis }) {
+  const delta = q[axis] - p[axis];
+  if (!delta) return null;
+  const t = (a[axis] - p[axis]) / delta;
+  const length = Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
+  if (Math.max(-t, t - 1) * length >= HIT_TOLERANCE) return null;
+  const cross = axis === "x" ? "y" : "x";
+  const v = p[cross] + (q[cross] - p[cross]) * t;
+  if (v <= Math.min(a[cross], b[cross]) - HIT_TOLERANCE || v >= Math.max(a[cross], b[cross]) + HIT_TOLERANCE) return null;
+  return lerp(p, q, t);
+}
+
+// PGF discards an already reported point within 1pt in BOTH coordinates,
+// across all source segments and rectangle edges, before sorting by time.
+function boxHitFilter() {
+  const bins = new Map();
+  return p => {
+    const x = Math.floor(p.x / TEX_PT), y = Math.floor(p.y / TEX_PT);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const q = bins.get(`${x + i}:${y + j}`);
+      if (q && Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y)) < TEX_PT) return false;
+    }
+    bins.set(`${x}:${y}`, p);
+    return true;
+  };
+}
+
+function controlBounds(points) {
+  return points.reduce(includePoint, emptyBoundingBox());
+}
+
+// A double-only overlap test can miss an exact tangent at a subdivision knot.
+function disjointDimensions(max, min) {
+  return max < min && Math.round(max / TEX_SP) < Math.round(min / TEX_SP);
+}
+
+// pgflibraryintersections promotes the directed edge to a cubic. Subdivide
+// edge first, then source, in depth-first order. At a leaf the solution POINT
+// is the mean of the two control boxes; its TIME is the source bracket midpoint.
+function cubicBoxHits(source, bounds, edge, edgeBounds, add, lo = 0, hi = 1, depth = 0) {
+  const a = bounds, b = edgeBounds;
+  if (disjointDimensions(a.maxX, b.minX) || disjointDimensions(b.maxX, a.minX) ||
+      disjointDimensions(a.maxY, b.minY) || disjointDimensions(b.maxY, a.minY)) return;
+  if (Math.max(a.maxX - a.minX, a.maxY - a.minY, b.maxX - b.minX, b.maxY - b.minY) < HIT_TOLERANCE) {
+    add({ x: (a.minX + a.maxX + b.minX + b.maxX) / 4, y: (a.minY + a.maxY + b.minY + b.maxY) / 4 },
+      Math.trunc((lo + hi) / 2 * PGF_SP) / PGF_SP);
+    return;
+  }
+  if (depth >= 48) return; // Beyond TeX's representable dimensions.
+  if (depth % 2 === 0) {
+    for (const half of splitCubic(edge, 0.5)) {
+      cubicBoxHits(source, a, half, controlBounds(half), add, lo, hi, depth + 1);
+    }
+  } else {
+    const [left, right] = splitCubic(source, 0.5), mid = (lo + hi) / 2;
+    cubicBoxHits(left, controlBounds(left), edge, b, add, lo, mid, depth + 1);
+    if (a.minX !== a.maxX || a.minY !== a.maxY) {
+      cubicBoxHits(right, controlBounds(right), edge, b, add, mid, hi, depth + 1);
+    }
+  }
 }

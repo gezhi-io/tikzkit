@@ -87,5 +87,6 @@ contains those captures, the reference PDFs, and the actual SVG/PNG pairs.
 Scope: open 2D boundaries and the numeric domain forms exercised here.
 This is not support for arbitrary closed TikZ paths, custom clip shapes,
 coincident intersections or general parametric intersection sequences.
-The numeric selectors use an orthogonally unbounded strip; an outlying
-overlay beyond PGF's enlarged survey rectangle can still differ.
+At this revision numeric selectors used an orthogonally unbounded strip.
+The [subsequent rectangle comparison](2026-11-26-fill-between-rectangles.md)
+covers the finite survey window and independent explicit rectangles.

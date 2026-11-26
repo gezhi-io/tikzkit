@@ -2,6 +2,13 @@ import { isLogAxis } from "./ranges.js";
 
 const DEFAULT_DISPLAY_LOG_BASE = 10;
 
+// PGF's stored log limits use natural logs unless a basis was selected.
+// This differs from the default display base used to choose decade labels.
+export function nativeLogRegisterBase(options, axis) {
+  const base = Number(options[`log basis ${axis}`] ?? options[`log base ${axis}`]);
+  return Number.isFinite(base) && base > 0 && base !== 1 ? base : Math.E;
+}
+
 export function axisLogBase(axisOptions = {}, axis) {
   const raw = axisOptions[`log basis ${axis}`] ?? axisOptions[`log base ${axis}`];
   if (raw === undefined || raw === null || raw === true || String(raw).trim() === "") {

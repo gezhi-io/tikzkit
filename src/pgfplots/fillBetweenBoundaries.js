@@ -43,23 +43,29 @@ function overlayCommands(canvas) {
   return commands;
 }
 
-function pathOptions(statement, cursor) {
+export function readFillBetweenPathOptions(statement, cursor) {
   const keys = [];
   let group;
   while ((group = parseOptionalOptions(statement, cursor)).end > cursor) {
     keys.push(group.raw);
     cursor = group.end;
   }
-  return { options: parseOptions(keys.join(",")), path: statement.slice(cursor) };
+  const rawOptions = keys.join(",");
+  return { rawOptions, options: parseOptions(rawOptions), path: statement.slice(cursor) };
 }
 
-function overlayBoundary(command, spec, ranges, geometry, options) {
-  const { semantic } = normalizeOptions(command, spec.options,
+export function fillBetweenPathPaint(command, keys, options = {}) {
+  const { semantic } = normalizeOptions(command, keys,
     { styles: options.pgfplotsStyleDefinitions || {}, variables: options.variables || {} });
   // Paint cannot change a named soft path. Do not discard an unknown style,
   // transform or other geometric modifier and then claim its unmodified path.
-  if (Object.keys(semantic).some(key =>
-    !/^(?:\/tikz\/)?name path(?: global)?$/.test(key) && key !== "tikzkit current color")) return [];
+  const onlyPaint = Object.keys(semantic).every(key =>
+    /^(?:\/tikz\/)?name path(?: (?:global|local))?$/.test(key) || key === "tikzkit current color");
+  return { onlyPaint, semantic };
+}
+
+function overlayBoundary(command, spec, ranges, geometry, options) {
+  if (!fillBetweenPathPaint(command, spec.options, options).onlyPaint) return [];
   return overlayCommands(transformAxisStatementCoordinates(spec.path, ranges, geometry));
 }
 
@@ -78,7 +84,7 @@ export function namedFillBetweenBoundaries(body, addplots, axisOptions, ranges, 
   for (const statement of splitTopLevel(stripTexComments(body || ""), ";")) {
     const match = /^\\(draw|path|filldraw|fill)\b/.exec(statement);
     if (!match) continue;
-    const spec = pathOptions(statement, match[0].length);
+    const spec = readFillBetweenPathOptions(statement, match[0].length);
     const name = axisPlotPathName(spec.options);
     if (name) store(name, overlayBoundary(match[1], spec, ranges, geometry, options));
   }

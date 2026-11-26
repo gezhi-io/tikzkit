@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "force-distance-rectangle",
+      "title": "Work under the force curve from x = 1 to 3",
+      "source": "force-distance-rectangle.tex"
+    },
+    {
+      "id": "independent-flipped-rectangles",
+      "title": "Two lines clipped by different rectangles",
+      "source": "independent-flipped-rectangles.tex"
+    },
+    {
+      "id": "cubic-two-side-rectangle",
+      "title": "A single cubic meets two sides of one rectangle",
+      "source": "cubic-two-side-rectangle.tex"
+    }
+  ]
+}

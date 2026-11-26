@@ -20,13 +20,8 @@ import {
 } from "./plotPath.js";
 import { axisPlotHandler } from "./plotHandler.js";
 import { selectPlotColor, selectPlotStyle } from "./plotStyle.js";
-import {
-  isSurfacePlot,
-  parseDomain,
-  PGFPLOTS_DEFAULT_FUNCTION_DOMAIN,
-  sampleFunctionDataPoints,
-  sampleParametricDataPoints
-} from "./rangeResolver.js";
+import { isSurfacePlot } from "./rangeResolver.js";
+import { sampledAddplotData } from "./addplotData.js";
 import { isAxisQuiverPlot, renderAxisQuiverPlot } from "./quiver.js";
 import {
   isAxisLinePatchPlot,
@@ -265,12 +260,7 @@ function sampledLinePlotPoints(plot, axisOptions, ranges, geometry, options) {
   if (saved && saved.geometry === geometry && saved.ranges === ranges && saved.axisOptions === axisOptions &&
       saved.options === options) return saved.stream;
   const clipRanges = axisPlotClipRanges(ranges, geometry);
-  const raw = plot.type === "parametric" ? sampleParametricDataPoints(plot, axisOptions, options)
-    : sampleFunctionDataPoints(plot, axisOptions, {
-      domain: parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN),
-      pgfplotsSamples: options.pgfplotsSamples || 25,
-      pgfplotsMaxSamples: 1200
-    });
+  const raw = sampledAddplotData(plot, axisOptions, geometry, options);
   const dataPoints = validPlotSamples(raw, plot, axisOptions);
   const visibleDataPoints = clipPlotSamples(dataPoints, plot, axisOptions, clipRanges);
   const stream = { raw, clipRanges, dataPoints, visibleDataPoints, points: mapPlotPoints(visibleDataPoints, plot, geometry) };

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { normalizeColor } from "../src/engine/options.js";
@@ -67,14 +70,55 @@ test("fill-between options use the addplot option reader and allow spaces in pat
   assert.equal(bracket.options.reverse, true);
 });
 
-test("qualified and unqualified soft clips apply where each was written", () => {
-  const source = band.replace("of=upper limit and lower limit", `/tikz/fill between/of=upper limit and lower limit,
+const qualifiedClipBand = band.replace("of=upper limit and lower limit", `/tikz/fill between/of=upper limit and lower limit,
     soft clip first={domain=0:1},soft clip={domain=1:3},/tikz/fill between/soft clip first={domain=2:4}`);
-  const [area] = fillBetweenAreas(tikzToSvg(source));
-  const upper = area?.commands.filter(p => p.y === 1.5).map(p => p.x);
-  const lower = area?.commands.filter(p => p.y === .5).map(p => p.x);
-  assert.deepEqual(upper, [2, 4]);
-  assert.deepEqual(lower, [3, 1]);
+const clipOrderCases = [
+  [qualifiedClipBand, [1, 3]],
+  [qualifiedClipBand.replace("soft clip={domain=1:3}", "soft clip={domain=3:1}"), [3, 1]],
+  [qualifiedClipBand.replace("domain=2:4}", "domain=2:4},reverse=true"), [3, 1]]
+];
+
+test("qualified and unqualified soft clips apply where each was written", () => {
+  // The descending lower input sets auto-reverse to false BEFORE clipping.
+  // PGF emits its two line hits in box-edge order, not original line direction.
+  for (const [source, [a, b]] of clipOrderCases) {
+    const result = tikzToSvg(source);
+    assert.deepEqual(result.diagnostics, []);
+    const areas = fillBetweenAreas(result);
+    assert.equal(areas.length, 1);
+    assert.deepEqual(areas[0].commands, [
+      { type: "moveTo", x: 2, y: 1.5 }, { type: "lineTo", x: 4, y: 1.5 },
+      { type: "lineTo", x: a, y: .5 }, { type: "lineTo", x: b, y: .5 }, { type: "closePath" }
+    ]);
+  }
+});
+
+test("local pdflatex paints the qualified clips and both reversal controls in the recorded order", {
+  skip: process.env.TIKZKIT_TEST_PDFLATEX !== "1" && "set TIKZKIT_TEST_PDFLATEX=1 to replay"
+}, () => {
+  const dir = mkdtempSync(join(tmpdir(), "fillbetween-clip-order-"));
+  try {
+    for (const [source, lower] of clipOrderCases) {
+      const wrapped = "\\documentclass[border=0pt]{standalone}\n\\pdfcompresslevel=0\n" +
+        source.replace("\\begin{tikzpicture}", "\\begin{document}\n\\begin{tikzpicture}") + "\n\\end{document}";
+      writeFileSync(join(dir, "probe.tex"), wrapped);
+      execFileSync("pdflatex", ["-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "probe.tex"],
+        { cwd: dir, timeout: 30000 });
+      // This fixture has a single red fill. Inspect its actual PDF painting
+      // operators in bp, independently of the JS renderer and PGF trace hooks.
+      const lines = readFileSync(join(dir, "probe.pdf"), "latin1").split(/\r?\n/).map(line => line.trim());
+      const red = lines.indexOf("1 0 0 rg");
+      assert.ok(red >= 0);
+      assert.equal(lines.lastIndexOf("1 0 0 rg"), red);
+      const ops = lines.slice(red + 1, red + 7).map(line => line.split(/\s+/));
+      assert.deepEqual(ops.map(op => op.at(-1)), ["m", "l", "l", "l", "h", "f"]);
+      const nativeX = { 1: 28.34389, 3: 85.03682 };
+      assert.deepEqual(ops.slice(0, 4).map(([x, y]) => [Number(x), Number(y)]),
+        [[56.69121, 42.5184], [113.38414, 42.5184], ...lower.map(x => [nativeX[x], 14.17279])]);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("split does not repaint the unsplit band when PGF omits every thin piece", () => {
