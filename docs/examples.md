@@ -214,6 +214,26 @@ Switch to `[american]` for zigzag bodies. The [original manual example](../test/
 shows how to vary the modifier thickness independently of the body.
 See the [browser/native comparison](qa/2026-11-25-circuitikz-resistor-modifiers.md) for this GitHub version.
 
+## Circuitikz Grounds
+
+Place a ground at the end of a wire. Its `center` is the electrical connection,
+not the middle of the symbol; `north`, `left` and `right` meet there too.
+
+```tex
+\begin{circuitikz}
+  \draw (0,1.5) to[R] (0,0) node[ground] {};
+\end{circuitikz}
+```
+
+| Editable source | What to compare |
+| --- | --- |
+| [Resistor return and reference bars](../test/fixtures/examples/circuitikz-grounds/tutorial-resistor-returns.tex) | A resistor connected to `ground`, beside `tlground`, `rground` and `tground`. |
+| [Signal, noiseless and protective returns](../test/fixtures/examples/circuitikz-grounds/signal-and-protective-grounds.tex) | Class fill on the signal triangle, an open noiseless arc and a local fill on the protective ring. |
+| [Chassis and European earth connections](../test/fixtures/examples/circuitikz-grounds/chassis-and-european-grounds.tex) | Chassis teeth and the four- and three-hatch European variants. |
+| [Side-facing returns and their named anchors](../test/fixtures/examples/circuitikz-grounds/rotated-ground-anchors.tex) | Rotated protective and chassis grounds with wires at their terminal and compass anchors. |
+
+See the [grounds comparison](qa/2026-11-26-circuitikz-grounds.md). This slice covers the ten pictured ground nodes, not other supply symbols or custom monopoles.
+
 ## Petri Nets
 
 Load `petri` for places, transitions and tokens. Edges in this example are

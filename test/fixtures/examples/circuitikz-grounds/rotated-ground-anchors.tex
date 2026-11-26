@@ -1,0 +1,23 @@
+% TeX Live 2025, doc/latex/circuitikz/circuitikzmanual.tex:2162-2171,
+% Grounds anchors and customization. Replace the showanchors labels by short
+% teal leader lines. Black leads attach to the symbols' electrical terminals.
+% Native: tex/generic/circuitikz/pgfcircmonopoles.tex:62-93,183-215;
+% bounds use the declared depth, not the ink extent or the text box.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \begin{scope}
+    \ctikzset{grounds/scale=1.6}
+    \node[pground,blue,rotate=90,anchor=south,line width=0.6pt] (PE) at (2.75,1.4) {};
+  \end{scope}
+  \node[cground,red,rotate=-90,anchor=east,line width=0.6pt] (CH) at (4.85,1.0) {};
+  \draw (0.35,1.4) -- (PE.north);
+  \draw (6.05,1.35) -- (CH.right);
+  \draw[teal,line width=0.6pt] (PE.north east) -- ++(0,0.48);
+  \draw[teal,line width=0.6pt] (PE.south west) -- ++(0,-0.48);
+  \draw[teal,line width=0.6pt] (CH.north west) -- ++(0,0.48);
+  \draw[teal,line width=0.6pt] (CH.south east) -- ++(0,-0.48);
+  \path[use as bounding box] (0,0) rectangle (6.4,2.8);
+\end{circuitikz}
+\end{document}

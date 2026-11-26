@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \path[use as bounding box] (-.6,-1) rectangle (4.4,1);
+  \draw[draw=red,line cap=round,dashed] (0,.7) -- (0,0) node[ground] {GND};
+  \draw[color=blue,dashed] (1.5,.7) -- (1.5,0) node[ground,draw=red] {GND};
+  \node[pground,color=teal,label=above:PE] at (3.4,0) {};
+\end{circuitikz}
+\end{document}

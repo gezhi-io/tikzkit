@@ -6,6 +6,8 @@ import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont } from "../
 import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
 import { fixedCapacitorItems, fixedCapacitorSettings } from "../extensions/circuitikz/capacitors.js";
+import { circuitikzGroundGeometry, circuitikzGroundKind, circuitikzGroundLocalAnchor,
+  circuitikzGroundParts } from "../extensions/circuitikz/grounds.js";
 import { fixedResistorItem, fixedResistorSettings } from "../extensions/circuitikz/resistors.js";
 import { resistorModifierSpec, resistorWithModifier } from "../extensions/circuitikz/resistorModifiers.js";
 import { roundTerminalSettings } from "../extensions/circuitikz/roundTerminals.js";
@@ -1124,7 +1126,10 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
     }
     const point = resolveCoordinatePlacement(statement, coordinateOptions, env, diagnostics);
     const name = statement.name ? resolveDynamicName(statement.name, env) : null;
-    if (name) env.coordinates[name] = point;
+    if (name) {
+      forgetCircuitikzGround(name, env);
+      env.coordinates[name] = point;
+    }
     addCoordinateLabels(statement.options || {}, point, env, ir);
     if (statement.children?.length) {
       createNodeTreeChildren(
@@ -2271,6 +2276,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
     }
     if (segment.kind === "coordinateName" && current) {
       const name = resolveDynamicName(segment.name, env);
+      forgetCircuitikzGround(name, env);
       env.coordinates[name] = roundPoint(current);
       continue;
     }
@@ -3641,9 +3647,35 @@ function circuitikzOpAmpSize(env = {}) {
   return { width: 1.7, height: 1.4 };
 }
 
-function circuitikzGroundSize(env = {}) {
-  const scale = circuitikzLengthScale(env);
-  return { width: roundNumber(0.44 * scale), height: roundNumber(0.36 * scale) };
+const GROUND_NODE_FRAME = Symbol("ground node frame");
+const GROUND_INLINE_PEN = Symbol("ground inline pen");
+
+function circuitikzGroundFrame(groundKind, options, env, localOptions = options, slope = null) {
+  const parent = tikzBoolean(options["transform shape"]) ? env.transform : identityTransform();
+  const local = composeTransform(parent, localOptions, env);
+  const tilt = slope == null ? 0 : slope - nodeRotation(options, env);
+  const tilted = tilt ? multiplyTransforms(coordinateLocalTransform({ rotate: tilt }, env), local) : local;
+  const { a, b, c, d } = multiplyTransforms(env.canvasTransform || identityTransform(), tilted);
+  return { groundKind, groundGeometry: circuitikzGroundGeometry(groundKind, options, env),
+    groundTransform: affineTransform(a, b, c, d) };
+}
+
+function saveCircuitikzGroundFrame(options, rawOptions, env, slope) {
+  const kind = circuitikzGroundKind(options);
+  if (!kind) return;
+  // A picture's xscale/yscale are already in env.transform. Only nodes=,
+  // every node and the node's own transforms belong in its local matrix.
+  const nodeLayer = inheritedNodeOptions({ ...env, pictureOptions: { nodes: env.pictureOptions?.nodes } });
+  const keys = normalizeOptions("node", mergeOptionOrder(nodeLayer, rawOptions), env).options;
+  options[GROUND_NODE_FRAME] = circuitikzGroundFrame(kind, options, env, keys, slope);
+}
+
+function circuitikzGroundSize(kind, options, env) {
+  const { groundGeometry, groundTransform: m } = options[GROUND_NODE_FRAME] || circuitikzGroundFrame(kind, options, env);
+  // The shared node layout scales these local-axis lengths by canvasScale.
+  const canvas = canvasLengthScale(env);
+  return { width: groundGeometry.width * Math.hypot(m.a, m.b) / canvas,
+    height: groundGeometry.depth * Math.hypot(m.c, m.d) / canvas };
 }
 
 function circuitikzTransistorSize(env = {}) {
@@ -5832,10 +5864,20 @@ function circuitikzMosfetNodeArrows(options = {}, env = {}) {
   return String(env.circuitikz?.["tripoles/mos style"] || "").trim() === "arrows";
 }
 
+const groundAnchorNames = ["center", "north", "north east", "east", "south east", "south", "south west",
+  "west", "north west", "left", "right", "text"];
+
+function forgetCircuitikzGround(name, env) {
+  if (env.nodes?.[name]?.shape !== "ground") return;
+  for (const anchor of groundAnchorNames) delete env.coordinates[`${name}.${anchor}`];
+  delete env.nodes[name];
+}
+
 function materializeCircuitikzNodeAnchors(name, env) {
   const node = env.nodes?.[name];
   if (!node) return;
   const anchorsByShape = {
+    ground: groundAnchorNames,
     circuitikzMosfet: ["G", "gate", "D", "drain", "S", "source"],
     circuitikzQuadpole: [
       "A1",
@@ -5983,37 +6025,20 @@ function circuitikzTerminalItem(terminal, pathStyle = {}, env = {}, keys = env.c
   };
 }
 
-function circuitikzGroundItem(point, style = {}, env = {}) {
-  const scale = circuitikzLengthScale(env);
-  const stroke = style.stroke && style.stroke !== "none" ? style.stroke : "black";
-  const top = point;
-  const stem = pointAlong(top, { x: 0, y: -1 }, 0.12 * scale);
-  const y1 = stem.y;
-  const y2 = stem.y - 0.09 * scale;
-  const y3 = stem.y - 0.17 * scale;
-  const w1 = 0.32 * scale;
-  const w2 = 0.22 * scale;
-  const w3 = 0.12 * scale;
-  return {
-    type: "path",
-    subtype: "circuitikz-ground",
-    style: {
-      stroke,
-      fill: "none",
-      lineWidth: Math.max(0.8, Number(style.lineWidth) || 1),
-      lineCap: "butt"
-    },
-    commands: [
-      { type: "moveTo", x: top.x, y: top.y },
-      { type: "lineTo", x: stem.x, y: stem.y },
-      { type: "moveTo", x: top.x - w1 / 2, y: y1 },
-      { type: "lineTo", x: top.x + w1 / 2, y: y1 },
-      { type: "moveTo", x: top.x - w2 / 2, y: y2 },
-      { type: "lineTo", x: top.x + w2 / 2, y: y2 },
-      { type: "moveTo", x: top.x - w3 / 2, y: y3 },
-      { type: "lineTo", x: top.x + w3 / 2, y: y3 }
-    ]
-  };
+function groundPagePoint(origin, frame, local) {
+  const offset = applyTransformVector(local, frame.groundTransform);
+  return roundPoint({ x: origin.x + offset.x, y: origin.y + offset.y });
+}
+
+function groundTextPoint(origin, frame, text, options, env) {
+  // The native text anchor is the connection itself, at the left baseline
+  // of the TeX box. The scene text primitive takes a box centre instead.
+  const normalized = normalizeTikzText(text, env);
+  const font = resolvedTextFontSpec(text, options, env);
+  const box = layoutMultilineTeXText(normalized, font) || layoutNativeTextRun(normalized, font);
+  return box ? groundPagePoint(origin, frame, {
+    x: box.width / (2 * TEX_PT_PER_CM), y: (box.height - box.depth) / (2 * TEX_PT_PER_CM)
+  }) : origin;
 }
 
 function measuredPassiveLabel(label, side, halfNormal, geometry, keys, env, pathStyle) {
@@ -6794,6 +6819,15 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env);
   let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle, pathOptions);
+  if (circuitikzGroundKind(expandedOptions)) {
+    // The monopole paints with the parent path's graphics state; the TeX box
+    // inherits its current color, not the separate stroke or fill register.
+    const nodeKeys = { ...(env.styles?.["every node"] && { "every node": true }),
+      ...parseInheritedNodesOption(env.pictureOptions?.nodes) };
+    const pen = normalizeOptions("node", mergeOptionOrder(inheritedPathInkOptions(pathOptions),
+      mergeOptionOrder(nodeKeys, rawOptions)), env);
+    expandedOptions[GROUND_INLINE_PEN] = { ...pen.style, stroke: pen.strokeInk };
+  }
   applyAutomataNodeParameters(expandedOptions, localOptions, env);
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   return withDimensionFont(
@@ -6807,6 +6841,8 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
   text = applyNodeLineBreakSemantics(resolveTextContent(rawText, env), expandedOptions);
   const nodeEnv = nodeCanvasEnv(env, expandedOptions);
+  const slopedRotation = slopedInlineNodeRotation(expandedOptions, pathSegment, nodeEnv);
+  saveCircuitikzGroundFrame(expandedOptions, rawOptions, nodeEnv, slopedRotation);
   if (inlinePathLabelNeedsTexMetrics(text, rawOptions, expandedOptions)) {
     expandedOptions["tikzkit inline math label metrics"] = true;
   }
@@ -6817,7 +6853,6 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
   const scaledAnchorSize = scaleSize(anchorSize, nodeEnv.canvasScale);
   const scaledPositioningSize = scaleSize(positioningSize, nodeEnv.canvasScale);
   const textAnchorOffsets = nodeTextAnchorOffsets(text, expandedOptions, nodeEnv, scaledSize);
-  const slopedRotation = slopedInlineNodeRotation(expandedOptions, pathSegment, nodeEnv);
   const recordRotation = slopedRotation ?? nodeRotation(expandedOptions, nodeEnv);
   const resolvedShape = nodeShape(expandedOptions);
   const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text, scaledSize);
@@ -6846,7 +6881,7 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
   const rawNodeName = segment.name || (expandedOptions.name && expandedOptions.name !== true ? String(expandedOptions.name) : "");
   if (rawNodeName) {
     nodeName = resolvePicScopedName(resolveDynamicName(rawNodeName, env), env);
-    env.nodes[nodeName] = {
+    registerNodeRecord(nodeName, {
       point: nodePoint,
       width: scaledSize.width,
       height: scaledSize.height,
@@ -6860,9 +6895,7 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
       shape: resolvedShape,
       shapeData: resolvedShapeData,
       rotation: recordRotation
-    };
-    env.coordinates[nodeName] = nodePoint;
-    materializeCircuitikzNodeAnchors(nodeName, env);
+    }, env);
   }
   let petriItems;
   if (env.petriLoaded && ["tokens", "colored tokens", "structured tokens"].some(k => Object.hasOwn(localOptions, k))) {
@@ -7167,6 +7200,7 @@ function createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics,
   const textMarks = extractTikzmarkNodes(applyNodeLineBreakSemantics(resolvedText, expandedOptions));
   const text = textMarks.text;
   const nodeEnv = nodeCanvasEnv(env, expandedOptions);
+  saveCircuitikzGroundFrame(expandedOptions, localOptions, nodeEnv);
   const fitLayout = resolveFitNodeLayout(expandedOptions, env, nodeEnv);
   const rectangleSplit = rectangleSplitLayout(text, expandedOptions, nodeEnv);
   const circleSplit = circleSplitLayout(text, expandedOptions, nodeEnv);
@@ -7293,6 +7327,7 @@ function isMatrixNodeOptions(options = {}) {
 
 function registerNodeRecord(name, record, env) {
   if (!name) return;
+  forgetCircuitikzGround(name, env);
   env.nodes[name] = { ...record };
   env.coordinates[name] = record.point;
   materializeCircuitikzNodeAnchors(name, env);
@@ -10255,8 +10290,8 @@ function addNodeItemsWithFont(node, ir, env) {
   const nativeOutline = plainRectangle || isRoundNode(shape);
   // transform shape scales the background coordinates and text.
   // Only a backend canvas transform scales its physical pen, gap and corner inset.
-  const paintEnv = nativeOutline ? env : nodeEnv;
-  const scaledStyle = scaleCanvasStyle(rawStyle, paintEnv);
+  const paintEnv = nativeOutline || shape === "ground" ? env : nodeEnv;
+  const scaledStyle = scaleCanvasStyle(node.options?.[GROUND_INLINE_PEN] || rawStyle, paintEnv);
   const patternDefinition = scaledStyle.pattern ? nodeEnv.patterns?.[scaledStyle.pattern] : null;
   const style = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
   const rotation = node.rotation ?? nodeRotation(node.options || {}, nodeEnv);
@@ -10279,7 +10314,7 @@ function addNodeItemsWithFont(node, ir, env) {
   const shadedFill = shadingStyle.fill || null;
   const textStyle = {
     ...style,
-    fill: style.textFill || semantic.text || "black",
+    fill: style.textFill || (node.options?.[GROUND_INLINE_PEN] ? "black" : semantic.text) || "black",
     fontScale: roundNumber(nodeEnv.canvasScale * (node.textFontScale || nodeFontScale(node.options || {}, nodeEnv))),
     fontSizeBaseScale: roundNumber(nodeEnv.canvasScale * nodeOptionScale(node.options || {}, nodeEnv)),
     exactMathFontScale: Boolean(semantic["axis legend"]),
@@ -10307,6 +10342,8 @@ function addNodeItemsWithFont(node, ir, env) {
   }
   const textPoint = shape === "opAmp"
     ? roundPoint({ x: point.x - size.width * 0.08, y: point.y - size.height * 0.02 })
+    : shape === "ground" && renderedNodeText.trim()
+      ? groundTextPoint(point, shapeData, renderedNodeText, node.options, nodeEnv)
     : shape === "circuitikzTransistor" || shape === "circuitikzMosfet"
       ? circuitikzTransistorTextPoint(point, size, shapeData)
       : point;
@@ -10322,13 +10359,10 @@ function addNodeItemsWithFont(node, ir, env) {
     );
   }
   if (shape === "ground") {
-    ir.items.push(circuitikzGroundItem(point, style, nodeEnv));
-    applyNodeClips(ir, firstItemIndex, clips);
-    applyNodeOverlay(ir, firstItemIndex, overlay);
-    applyCanvasTransformBounds(ir, firstItemIndex, nodeEnv.canvasTrackingDisabled);
-    return;
-  }
-  if (shape === "opAmp") {
+    const parts = circuitikzGroundParts(shapeData.groundKind, shapeData.groundGeometry, node.options, nodeEnv, style);
+    for (const part of parts) ir.items.push({ ...part,
+      commands: mapPathCoordinates(part.commands, p => groundPagePoint(point, shapeData, p)) });
+  } else if (shape === "opAmp") {
     ir.items.push({
       type: "nodeBox",
       id: node.name,
@@ -10491,16 +10525,17 @@ function addNodeItemsWithFont(node, ir, env) {
     addMultipartTextItems(node, node.ellipseSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "diamondSplit" && node.diamondSplit) {
     addMultipartTextItems(node, node.diamondSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
-  } else {
+  } else if (shape !== "ground" || renderedNodeText.trim()) {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic, nodeEnv);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
-    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "circularSector" || shape === "kite" || shape === "dart";
+    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "ground" || shape === "starburst" || shape === "semicircle" || shape === "circularSector" || shape === "kite" || shape === "dart";
     ir.items.push({
       type: "textNode",
       ...(node.automataLabel && renderedNodeText.trim() ? { subtype: "automata-" + node.automataLabel + "-text" } : {}),
       x: textPoint.x,
       y: textPoint.y,
       text: renderedNodeText,
+      ...(shape === "ground" ? { excludeFromBounds: true } : {}),
       // Even without any ink PGF includes the background path in the picture.
       ...(!renderedNodeText.trim() && ir.items.length === firstItemIndex && !skipsImplicitLayoutBounds &&
         nativeOutline ? { retainEmptyLayout: true } : {}),
@@ -10540,10 +10575,13 @@ function addNodeItemsWithFont(node, ir, env) {
     shapeData
   );
   if (magnifyingGlassForeground) ir.items.push(magnifyingGlassForeground);
-  for (const label of nodeLabels(node.options || {}, point, size, nodeEnv, textStyle)) {
+  // TikZ maps above/below/etc. to angle anchors. Grounds have no border
+  // routine, so all angles start at the terminal, not at the body outline.
+  const labelBorder = shape === "ground" ? { width: 0, height: 0 } : size;
+  for (const label of nodeLabels(node.options || {}, point, labelBorder, nodeEnv, textStyle)) {
     ir.items.push(label);
   }
-  for (const pinItem of nodePins(node.options || {}, point, size, nodeEnv, textStyle)) {
+  for (const pinItem of nodePins(node.options || {}, point, labelBorder, nodeEnv, textStyle)) {
     ir.items.push(pinItem);
   }
   if (!node.automataLabel && (semantic["tikzkit automata initial"] || semantic["tikzkit automata accepting"])) {
@@ -11842,7 +11880,7 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
     shapeData
   });
   if (customAnchor) {
-    const rotated = rotateVector(customAnchor.x, customAnchor.y, rotation);
+    const rotated = transformedNodeAnchorVector(customAnchor, shapeData, rotation);
     return { x: -rotated.x, y: -rotated.y };
   }
   const outerSep = nodeOuterSep(options, env);
@@ -12243,6 +12281,8 @@ function pointsAlmostEqual(a, b, epsilon = 1e-9) {
 }
 
 function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
+  // Grounds do not declare an anchorborder; PGF's default returns center.
+  if (node.shape === "ground") return roundPoint(center);
   const dx = toward.x - center.x;
   const dy = toward.y - center.y;
   const distance = Math.hypot(dx, dy);
@@ -12456,7 +12496,7 @@ function nodeShape(options = {}) {
   const tubeKind = circuitikzTubeKind(options);
   const quadpoleKind = circuitikzQuadpoleKind(options);
   if (options["op amp"] || shape === "op amp" || shape === "opamp") return "opAmp";
-  if (options.ground || shape === "ground") return "ground";
+  if (circuitikzGroundKind(options)) return "ground";
   if (circuitikzMosfetNodeKind(options)) return "circuitikzMosfet";
   if (circuitikzTransistorKind(options)) return "circuitikzTransistor";
   if (tubeKind) return circuitikzTubeShape(tubeKind);
@@ -13011,6 +13051,8 @@ function isoscelesTriangleLayoutShapeData(layoutSize = {}) {
 }
 
 function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
+  const groundKind = circuitikzGroundKind(options);
+  if (groundKind) return options[GROUND_NODE_FRAME] || circuitikzGroundFrame(groundKind, options, env);
   const regularSides = regularPolygonSides(options, env);
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
   const star = starShapeData(options, env, shapeBorderRotate);
@@ -14361,7 +14403,8 @@ function estimateMatrixCellLayoutSize(text, options = {}, env = { variables: {} 
 function estimateNodeLayoutSize(text, options = {}, env = { variables: {} }) {
   text = applyNodeLineBreakSemantics(text, options);
   if (options["op amp"]) return circuitikzOpAmpSize(env);
-  if (options.ground) return circuitikzGroundSize(env);
+  const groundKind = circuitikzGroundKind(options);
+  if (groundKind) return circuitikzGroundSize(groundKind, options, env);
   if (circuitikzMosfetNodeKind(options)) return circuitikzMosfetNodeSize(env);
   if (circuitikzTransistorKind(options)) return circuitikzTransistorSize(env);
   if (circuitikzTubeKind(options)) return circuitikzTubeSize(env, options);
@@ -14403,6 +14446,7 @@ function estimateTkzAxisTickLabelSize(text, options = {}, env = { variables: {} 
 
 function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
   const size = visibleSize || estimateNodeLayoutSize(text, options, env);
+  if (circuitikzGroundKind(options)) return size;
   const outerSep = nodeOuterSep(options, env);
   if (isRoundNode(nodeShape(options))) {
     const scale = nodeOptionScale(options, env);
@@ -14743,7 +14787,7 @@ function nodeUsesBoxSizing(options = {}, env = { variables: {} }) {
       options["knot crossing"] ||
       options.ellipse ||
       options["op amp"] ||
-      options.ground ||
+      circuitikzGroundKind(options) ||
       options.shape ||
       options.signal ||
       options["magnetic tape"] ||
@@ -14889,6 +14933,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const normalized = normalizeTikzText(text, env);
   const shapeScale = nodeOptionScale(options, env);
   const shape = nodeShape(options);
+  if (shape === "ground") return circuitikzGroundSize(circuitikzGroundKind(options), options, env);
   const ordinaryRound = isRoundNode(shape) && !(shape === "circle" && options.cross);
   const dimension = value => {
     const literal = literalRegisterLengthCm(value);
@@ -18078,7 +18123,7 @@ function nodeAnchorCoordinate(node, anchorRaw, env) {
     shapeData
   });
   if (customAnchor) {
-    const rotated = rotateVector(customAnchor.x, customAnchor.y, Number(node.rotation) || 0);
+    const rotated = transformedNodeAnchorVector(customAnchor, shapeData, Number(node.rotation) || 0);
     return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
   }
   if (anchor === "text") return roundPoint({ x: node.point.x - visibleWidth * 0.18, y: node.point.y - visibleHeight * 0.04 });
@@ -18102,11 +18147,17 @@ function nodeAnchorCoordinate(node, anchorRaw, env) {
   return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
 }
 
+function transformedNodeAnchorVector(local, shapeData, rotation) {
+  return shapeData?.groundTransform ? applyTransformVector(local, shapeData.groundTransform)
+    : rotateVector(local.x, local.y, rotation);
+}
+
 function customNodeLocalAnchor(shape, anchorRaw, size) {
   const rawAnchor = String(anchorRaw || "").trim().toLowerCase();
   const anchor = rawAnchor.replace(/-/g, " ");
   const halfWidth = (Number(size.width) || 0) / 2;
   const halfHeight = (Number(size.height) || 0) / 2;
+  if (shape === "ground") return circuitikzGroundLocalAnchor(anchor === "text" ? "center" : anchor, size.shapeData.groundGeometry);
   if (shape === "circuitikzInductor") {
     const inductorAnchor = circuitikzInductorLocalAnchor(anchor, size);
     if (inductorAnchor) return inductorAnchor;

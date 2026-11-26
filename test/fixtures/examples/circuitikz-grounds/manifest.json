@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "cases": [
+    {"id": "tutorial-resistor-returns", "title": "Resistor return and reference bars", "source": "tutorial-resistor-returns.tex"},
+    {"id": "signal-and-protective-grounds", "title": "Signal, noiseless and protective returns", "source": "signal-and-protective-grounds.tex"},
+    {"id": "chassis-and-european-grounds", "title": "Chassis and European earth connections", "source": "chassis-and-european-grounds.tex"},
+    {"id": "rotated-ground-anchors", "title": "Side-facing returns and their named anchors", "source": "rotated-ground-anchors.tex"}
+  ]
+}

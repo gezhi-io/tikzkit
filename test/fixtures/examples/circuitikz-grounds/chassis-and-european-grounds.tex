@@ -1,0 +1,19 @@
+% TeX Live 2025, doc/latex/circuitikz/circuitikzmanual.tex:2153-2159,
+% Grounds gallery; put the three enclosure connections on one wiring rail.
+% Native: tex/generic/circuitikz/pgfcircmonopoles.tex:201-263.
+% The chassis uses the body pen for its hatches. Both European variants
+% switch back to the incoming pen after the beam and have four vs. three hatches.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \ctikzset{grounds/scale=1.35,monopoles/ground/width=0.30,
+    monopoles/ground/thickness=2.5,monopoles/ground/connectionthickness=1.6,
+    monopoles/tground/thickness=3.5}
+  \draw (1.05,2.46) -- (5.35,2.46);
+  \draw (1.05,2.46) -- (1.05,1.72) node[cground,blue,line width=0.6pt] {};
+  \draw (3.20,2.46) -- (3.20,1.72) node[eground,teal,line width=0.6pt] {};
+  \draw (5.35,2.46) -- (5.35,1.72) node[eground2,red,line width=0.6pt] {};
+  \path[use as bounding box] (0,0) rectangle (6.4,2.8);
+\end{circuitikz}
+\end{document}

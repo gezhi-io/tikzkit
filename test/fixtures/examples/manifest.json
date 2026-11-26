@@ -9181,6 +9181,42 @@
       "sourceCorpus": "TikZKit regression checked against native PGFPlots",
       "semanticOwner": "src/pgfplots/fillBetweenSoftClip.js",
       "features": ["fill between", "cubic controls", "rectangular soft clip"]
+    },
+    {
+      "id": "tutorial-resistor-returns",
+      "title": "Resistor return and reference bars",
+      "source": "circuitikz-grounds/tutorial-resistor-returns.tex",
+      "sourceCorpus": "Adapted from the TeX Live Circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex:578-588,2142-2159",
+      "semanticOwner": "src/extensions/circuitikz/grounds.js:circuitikzGroundParts",
+      "features": ["ground", "tlground", "rground", "tground", "reference bar thickness"]
+    },
+    {
+      "id": "signal-and-protective-grounds",
+      "title": "Signal, noiseless and protective returns",
+      "source": "circuitikz-grounds/signal-and-protective-grounds.tex",
+      "sourceCorpus": "Adapted from the TeX Live Circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex:2142-2171",
+      "semanticOwner": "src/extensions/circuitikz/grounds.js:circuitikzGroundParts",
+      "features": ["sground", "nground", "pground", "grounds/scale", "grounds/fill", "local fill"]
+    },
+    {
+      "id": "chassis-and-european-grounds",
+      "title": "Chassis and European earth connections",
+      "source": "circuitikz-grounds/chassis-and-european-grounds.tex",
+      "sourceCorpus": "Adapted from the TeX Live Circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex:2153-2159",
+      "semanticOwner": "src/extensions/circuitikz/grounds.js:circuitikzGroundParts",
+      "features": ["cground", "eground", "eground2", "hatch strokes", "connection thickness"]
+    },
+    {
+      "id": "rotated-ground-anchors",
+      "title": "Side-facing returns and their named anchors",
+      "source": "circuitikz-grounds/rotated-ground-anchors.tex",
+      "sourceCorpus": "Adapted from the TeX Live Circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex:2162-2171",
+      "semanticOwner": "src/extensions/circuitikz/grounds.js:circuitikzGroundGeometry/circuitikzGroundLocalAnchor",
+      "features": ["pground", "cground", "rotated ground nodes", "saved compass anchors"]
     }
   ]
 }

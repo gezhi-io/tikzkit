@@ -1,0 +1,19 @@
+% TeX Live 2025, doc/latex/circuitikz/circuitikzmanual.tex:578-588:
+% isolate the amplifier tutorial's resistor-to-ground feedback branch (line 584).
+% Add the three reference-bar alternatives from the Grounds gallery, lines 2142-2156.
+% Native: tex/generic/circuitikz/pgfcircmonopoles.tex:25-29,96-146.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \draw (0.75,2.55) -- (5.65,2.55);
+  \draw (0.75,2.55) to[R] (0.75,1.05) node[ground,blue] {};
+  \draw (2.35,2.55) -- (2.35,1.05) node[tlground,teal] {};
+  \begin{scope}
+    \ctikzset{monopoles/rground/thickness=3,monopoles/tground/thickness=4}
+    \draw (4.05,2.55) -- (4.05,1.05) node[rground,red,line width=0.65pt] {};
+    \draw (5.65,2.55) -- (5.65,1.05) node[tground,blue,line width=0.65pt] {};
+  \end{scope}
+  \path[use as bounding box] (0,0) rectangle (6.4,2.8);
+\end{circuitikz}
+\end{document}

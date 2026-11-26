@@ -1,0 +1,19 @@
+% TeX Live 2025, doc/latex/circuitikz/circuitikzmanual.tex:2142-2171,
+% Grounds gallery. Compare its two fillable symbols with the open noiseless one.
+% Native: tex/generic/circuitikz/pgfcircmonopoles.tex:148-199 and
+% pgfcirc.defines.tex:451-489,533-550 (class fill, node fill and body thickness).
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \begin{scope}
+    \ctikzset{grounds/scale=1.35,monopoles/ground/width=0.32,grounds/fill=teal,
+      grounds/thickness=2.4,monopoles/ground/connectionthickness=1.8}
+    \draw (1.05,2.42) -- (5.35,2.42);
+    \draw (1.05,2.42) -- (1.05,1.68) node[sground,blue,line width=0.6pt] {};
+    \draw (3.20,2.42) -- (3.20,1.68) node[nground,teal,line width=0.6pt] {};
+    \draw (5.35,2.42) -- (5.35,1.68) node[pground,red,fill=blue!35,line width=0.6pt] {};
+  \end{scope}
+  \path[use as bounding box] (0,0) rectangle (6.4,2.8);
+\end{circuitikz}
+\end{document}

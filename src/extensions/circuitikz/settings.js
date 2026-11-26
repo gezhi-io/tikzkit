@@ -10,6 +10,8 @@ const keys = new Set(["bipoles/length", "bipoles/thickness", "bipoles/border mar
   "resistors/thickness", "resistors/fill", "resistors/modifier thickness", "wiper start arrow", "wiper end arrow",
   "bipoles/fix tunable direction", "tunable start arrow", "tunable end arrow", "bipoles/thermistor/main",
   "label distance", "label/align",
+  "grounds/scale", "grounds/thickness", "grounds/fill", "monopoles/ground/width",
+  "monopoles/ground/connectionthickness", "monopoles/ground/thickness", "monopoles/rground/thickness", "monopoles/tground/thickness",
   "nodes width", "open poles fill", "poles/open fill opacity", "poles/full fill opacity", "color",
   "sources/scale", "current arrow scale", "voltage/shift", "voltage/bump a",
   "voltage/european label distance", "voltage/straight label distance", "voltage shift sources adjust"]);
