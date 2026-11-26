@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "manual-named-midpoint",
+      "title": "Constructing paths: a named midpoint",
+      "source": "manual-named-midpoint.tex",
+      "provenance": "PGF manual, pgfmanual-en-base-paths.tex:23-35. The scaled straight segment and its label are excerpted; the blue takeoff and unpainted frame are added."
+    },
+    {
+      "id": "shifted-test-point",
+      "title": "Three rails and a shifted test point",
+      "source": "shifted-test-point.tex",
+      "provenance": "Original wiring probe of tikz.code.tex:3746-3768 and the coordinate shape in pgfmoduleshapes.code.tex:847-875; not a published drawing."
+    },
+    {
+      "id": "tutorial-feedback-ground",
+      "title": "Feedback resistor and protective return",
+      "source": "tutorial-feedback-ground.tex",
+      "provenance": "CircuitikZ manual, circuitikzmanual.tex:627-633, non-inverting amplifier. Isolates the named FB branch and resistor; substitutes a labeled FB and a named protective ground, then adds independent takeoff wires and an ordinary return contact."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+% Isolate the feedback/return leg of the CircuitikZ op-amp tutorial.
+\begin{circuitikz}
+  \path[use as bounding box] (-.2,-.7) rectangle (3,3.4);
+  \draw (1,3) -- ++(0,-1) coordinate[label=left:FB] (FB)
+    to[R=$R_1$] ++(0,-2) coordinate[pground] (PE)
+    -- ++(1,0) coordinate (RET);
+  \draw[blue] (FB) -- ++(1.5,0);
+  \draw[red] (PE) -- ++(-.8,0);
+  \draw[teal] (RET) -- ++(0,.6);
+\end{circuitikz}
+\end{document}

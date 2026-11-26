@@ -2055,14 +2055,8 @@ function parseArcToSegment(pathText, index) {
   cursor = skipWhitespace(pathText, cursor);
   const options = parseOptionalOptions(pathText, cursor);
   cursor = skipWhitespace(pathText, options.end);
-  const nodes = [];
-  while (startsKeyword(pathText, cursor, "node")) {
-    const node = parseInlineNodeSegment(pathText, cursor);
-    if (!node) break;
-    nodes.push(node.segment);
-    cursor = skipWhitespace(pathText, node.end);
-  }
-  const to = extractBalanced(pathText, cursor, "(", ")");
+  const { nodes, end } = parsePathTargetNodes(pathText, cursor);
+  const to = extractBalanced(pathText, end, "(", ")");
   if (!to) return null;
   return {
     segment: {
@@ -2093,14 +2087,16 @@ function parseCurveSegment(pathText, index) {
   if (!pathText.startsWith("..", cursor)) return null;
   cursor += 2;
   cursor = skipWhitespace(pathText, cursor);
-  const to = parseCurveCoordinate(pathText, cursor);
+  const { nodes, end } = parsePathTargetNodes(pathText, cursor);
+  const to = parseCurveCoordinate(pathText, end);
   if (!to) return null;
   return {
     segment: {
       kind: "curveTo",
       c1: c1.raw,
       c2: c2.raw,
-      to: to.raw
+      to: to.raw,
+      ...(nodes.length && { nodes })
     },
     end: to.end
   };
@@ -2129,13 +2125,8 @@ function parsePathTargetOperation(pathText, index, kind, leadingOptions = {}) {
   const options = parseOptionalOptions(pathText, cursor);
   cursor = options.end;
   cursor = skipWhitespace(pathText, cursor);
-  const nodes = [];
-  while (startsKeyword(pathText, cursor, "node")) {
-    const parsedNode = parseInlineNodeSegment(pathText, cursor);
-    if (!parsedNode) break;
-    nodes.push(parsedNode.segment);
-    cursor = skipWhitespace(pathText, parsedNode.end);
-  }
+  const { nodes, end } = parsePathTargetNodes(pathText, cursor);
+  cursor = end;
   let relative = null;
   if (pathText.startsWith("++", cursor) || pathText.startsWith("+", cursor)) {
     const plusLength = pathText.startsWith("++", cursor) ? 2 : 1;
@@ -2173,14 +2164,29 @@ function parsePathPicSegment(pathText, index) {
   };
 }
 
+function parsePathTargetNodes(pathText, cursor) {
+  const nodes = [];
+  while (true) {
+    const parsed = startsKeyword(pathText, cursor, "coordinate") ? parsePathCoordinateName(pathText, cursor)
+      : startsKeyword(pathText, cursor, "node") ? parseInlineNodeSegment(pathText, cursor) : null;
+    if (!parsed) break;
+    nodes.push(parsed.segment);
+    cursor = skipWhitespace(pathText, parsed.end);
+  }
+  return { nodes, end: cursor };
+}
+
 function parsePathCoordinateName(pathText, index) {
-  let cursor = index + "coordinate".length;
-  cursor = skipWhitespace(pathText, cursor);
+  const options = parseOptionalOptions(pathText, index + "coordinate".length);
+  let cursor = skipWhitespace(pathText, options.end);
   const name = extractBalanced(pathText, cursor, "(", ")");
-  if (!name) return null;
+  if (name) cursor = skipWhitespace(pathText, name.end);
+  const at = name && startsKeyword(pathText, cursor, "at")
+    ? extractBalanced(pathText, skipWhitespace(pathText, cursor + 2), "(", ")") : null;
   return {
-    segment: { kind: "coordinateName", name: name.content.trim() },
-    end: name.end
+    segment: { kind: "coordinateName", ...(name && { name: name.content.trim() }),
+      ...(options.raw && { options: options.options }), ...(at && { at: at.content.trim() }) },
+    end: at?.end ?? cursor
   };
 }
 

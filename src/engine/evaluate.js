@@ -2274,12 +2274,6 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       pending = null;
       continue;
     }
-    if (segment.kind === "coordinateName" && current) {
-      const name = resolveDynamicName(segment.name, env);
-      forgetCircuitikzGround(name, env);
-      env.coordinates[name] = roundPoint(current);
-      continue;
-    }
     if (segment.kind === "pic") {
       const anglePic = buildAnglePic(segment, pathOptions, env, diagnostics);
       if (anglePic) {
@@ -2299,14 +2293,17 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         endNodeRef
       };
       const to = segment.relative
-        ? resolveRelativeCoordinate(segment.to, currentBase || current, env, diagnostics)
+        ? resolveRelativeCoordinate(segment.to, relativeBase || currentBase || current, env, diagnostics)
         : resolveCoordinate(segment.to, env, diagnostics);
+      // A to route belongs to the current path; an edge draws a separate path.
+      // Only absolute and ++ targets update the base for subsequent +/++.
+      if (segment.kind === "to" && segment.relative !== "temporary") relativeBase = to;
       const toNodeRef = segment.relative ? null : defaultPathNodeReference(segment.to, env);
       if (segment.nodes?.length) {
         for (const labelNode of segment.nodes) {
           pendingInlineNodes.push({
             ...labelNode,
-            text: substituteTextVariables(labelNode.text, env.variables)
+            text: substituteTextVariables(labelNode.text ?? "", env.variables)
           });
         }
       }
@@ -2505,9 +2502,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         if (segment.kind === "edge") updateCurrentMoveTo(targetCommands, clipped.from);
         else if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         targetCommands.push(curveToCommand(c1, c2, clipped.to));
-        const labelGeometry = cubicLabelGeometry(clipped.from, c1, c2, clipped.to);
-        flushInlinePathNodesAt(pendingInlineNodes, labelGeometry.point, foreground, env, pathStyle, labelGeometry.segment, effectivePathOptions);
-        lastSegment = { from: clipped.from, to: clipped.to };
+        lastSegment = { ...clipped, c1, c2 };
+        flushCubicInlineNodes(pendingInlineNodes, lastSegment, foreground, env, pathStyle, effectivePathOptions);
       } else {
         if (segment.kind !== "edge" && shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         targetCommands.push(lineToCommand(clipped.to));
@@ -2534,7 +2530,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         for (const labelNode of segment.nodes) {
           pendingInlineNodes.push({
             ...labelNode,
-            text: substituteTextVariables(labelNode.text, env.variables)
+            text: substituteTextVariables(labelNode.text ?? "", env.variables)
           });
         }
       }
@@ -2567,6 +2563,10 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         c2,
         tangent: { x: clipped.to.x - c2.x, y: clipped.to.y - c2.y }
       };
+      if (segment.nodes?.length) {
+        const timed = segment.nodes.map(node => ({ ...node, text: substituteTextVariables(node.text ?? "", env.variables) }));
+        flushCubicInlineNodes(timed, lastSegment, foreground, env, pathStyle, effectivePathOptions);
+      }
       current = clipped.to;
       currentLocal = null;
       currentBase = to;
@@ -2707,16 +2707,14 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       pendingBorderMove = null;
       continue;
     }
-    if (segment.kind === "node") {
-      const text = substituteTextVariables(segment.text, env.variables);
+    if (segment.kind === "node" || segment.kind === "coordinateName") {
+      const text = substituteTextVariables(segment.text ?? "", env.variables);
       if (!segment.at && current && pending) {
         pendingInlineNodes.push({ ...segment, text });
         continue;
       }
       const placementOptions = inlineNodeResolvedOptions(segment.options, env, pathStyle, effectivePathOptions);
-      const point = segment.at
-        ? resolveCoordinate(segment.at, env, diagnostics)
-        : inlineNodePathPoint(placementOptions, lastSegment) || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
+      const point = inlineNodePathPoint(placementOptions, lastSegment) || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
       addInlinePathNode(segment, text, point, foreground, env, pathStyle, lastSegment, effectivePathOptions, diagnostics);
       continue;
     }
@@ -2985,12 +2983,7 @@ function flushCustomToPathNodes(pendingNodes, primitives, operation, nodes, env,
     flushInlinePathNodes(pendingNodes, active.from, active.to, nodes, env, pathStyle, pathOptions);
     return;
   }
-  for (const segment of pendingNodes) {
-    const placementOptions = inlineNodeResolvedOptions(segment.options, env, pathStyle, pathOptions);
-    const pos = inlineNodePosition(placementOptions, 0.5);
-    const point = roundPoint(cubicPointAt(active.from, active.c1, active.c2, active.to, pos));
-    addInlinePathNode(segment, segment.text, point, nodes, env, pathStyle, active, pathOptions);
-  }
+  flushCubicInlineNodes(pendingNodes, active, nodes, env, pathStyle, pathOptions);
 }
 
 function isTikzExtOrthoOperator(value) {
@@ -6812,6 +6805,7 @@ function flushInlinePathNodesAt(pendingInlineNodes, point, nodes, env, pathStyle
 }
 
 function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pathSegment = null, pathOptions = {}, diagnostics = []) {
+  if (segment.at) point = resolveCoordinate(segment.at, env, diagnostics);
   const rawOptions = resolveDynamicOptions(segment.options || {}, env);
   const localOptions = normalizeOptions("node", inlineNodeOptions(rawOptions, pathStyle, pathOptions), env).options;
   const normalizedOptions = normalizeOptions("node", {
@@ -6819,6 +6813,22 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env);
   let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle, pathOptions);
+  // tikz@@coordinate expands to an empty node with shape=coordinate before
+  // the local keys. This shape has no ink or border, even with draw/minimum size.
+  if (segment.kind === "coordinateName" && nodeShape(localOptions) === "rectangle" &&
+      (!localOptions.shape || localOptions.shape === "coordinate") && !localOptions.rectangle) {
+    const base = resolvePositioning(expandedOptions, env, { width: 0, height: 0 }) || point;
+    const shift = nodeExplicitShift(expandedOptions, env);
+    const at = roundPoint({ x: base.x + shift.x, y: base.y + shift.y });
+    const name = resolvePicScopedName(resolveDynamicName(segment.name || expandedOptions.name, env), env);
+    if (name) {
+      forgetCircuitikzGround(name, env);
+      delete env.nodes[name];
+      env.coordinates[name] = at;
+    }
+    if (expandedOptions.label || expandedOptions.pin) nodes.push({ coordinateOnly: true, at, options: expandedOptions });
+    return;
+  }
   if (circuitikzGroundKind(expandedOptions)) {
     // The monopole paints with the parent path's graphics state; the TeX box
     // inherits its current color, not the separate stroke or fill register.
@@ -10264,6 +10274,7 @@ function fitReferencePoints(ref, env = {}) {
 }
 
 function addNodeItems(node, ir, env) {
+  if (node.coordinateOnly) return addCoordinateLabels(node.options, node.at, env, ir);
   const result = withDimensionFont(
     () => nodeDimensionFontSpec(node.options || {}, env),
     () => addNodeItemsWithFont(node, ir, env)
@@ -11204,7 +11215,7 @@ function labelTextStyle(label, env, fallbackStyle = {}, parentOptions = {}, kind
 }
 
 function addCoordinateLabels(options = {}, point, env, ir) {
-  if (options.label === undefined || options.label === true || options.label === "") return;
+  if (!options.label && !options.pin) return;
   const expandedOptions = normalizeOptions("node", {
     ...inheritedNodeOptions(env),
     ...resolveDynamicOptions(options, env)
@@ -11222,9 +11233,9 @@ function addCoordinateLabels(options = {}, point, env, ir) {
     fontVariant: resolveInheritedFontVariant(expandedOptions.font, env.pictureOptions?.font),
     fontWeight: resolveInheritedFontWeight(expandedOptions.font, env.pictureOptions?.font)
   };
-  for (const label of nodeLabels(expandedOptions, point, { width: 0, height: 0 }, env, textStyle)) {
-    ir.items.push(label);
-  }
+  const size = { width: 0, height: 0 };
+  ir.items.push(...nodeLabels(expandedOptions, point, size, env, textStyle),
+    ...nodePins(expandedOptions, point, size, env, textStyle));
 }
 
 function parseNodeLabel(value) {
@@ -12246,16 +12257,18 @@ function edgeCurveSpec(options = {}, from, to, env) {
   });
 }
 
-function cubicLabelGeometry(from, c1, c2, to) {
-  const point = cubicPointAt(from, c1, c2, to, 0.5);
-  const tangent = cubicTangentAt(from, c1, c2, to, 0.5);
-  return {
-    point: roundPoint(point),
-    segment: {
+function flushCubicInlineNodes(pendingNodes, curve, nodes, env, pathStyle, pathOptions) {
+  const { from, c1, c2, to } = curve;
+  for (const segment of pendingNodes) {
+    const placement = inlineNodeResolvedOptions(segment.options, env, pathStyle, pathOptions);
+    const pos = inlineNodePosition(placement, .5);
+    const point = roundPoint(cubicPointAt(from, c1, c2, to, pos));
+    const tangent = cubicTangentAt(from, c1, c2, to, pos);
+    addInlinePathNode(segment, segment.text, point, nodes, env, pathStyle, {
       from: roundPoint({ x: point.x - tangent.x / 2, y: point.y - tangent.y / 2 }),
       to: roundPoint({ x: point.x + tangent.x / 2, y: point.y + tangent.y / 2 })
-    }
-  };
+    }, pathOptions);
+  }
 }
 
 function parseAngleOption(value, fallback, env) {

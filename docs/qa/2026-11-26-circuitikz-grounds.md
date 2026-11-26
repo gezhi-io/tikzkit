@@ -71,4 +71,5 @@ TikZ stroke/fill, physical line width and cap, rotation, and named contacts.
 Power-supply arrows, antennas and user-defined component paint hooks are
 outside this comparison. Inline `coordinate[ground]`, using a ground as the
 shape of an empty label, and arbitrary transformed multiline text are not
-covered. Prefer an inline `node[ground] {}` for a wire terminal.
+covered by this ground-only check. The [inline coordinate follow-up](2026-11-26-inline-coordinates.md)
+also checks a wire ending in `coordinate[pground] (PE)`.

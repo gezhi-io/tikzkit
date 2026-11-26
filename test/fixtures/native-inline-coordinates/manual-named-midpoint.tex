@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+% Straight-segment excerpt from the PGF manual, "Constructing Paths".
+\begin{tikzpicture}[scale=2]
+  \path[use as bounding box] (-.2,-.5) rectangle (2,.9);
+  \draw[thick,red]
+       (0,0) coordinate (a)
+    -- coordinate (ab) (1,.5) coordinate (b);
+  \draw (ab) node[below right] {straight segment};
+  \draw[blue] (ab) -- +(0,.4);
+\end{tikzpicture}
+\end{document}
