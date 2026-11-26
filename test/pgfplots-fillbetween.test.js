@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { normalizeColor } from "../src/engine/options.js";
 import { tikzToSvg } from "../src/index.js";
-import { splitXMonotoneFillBetweenPaths } from "../src/pgfplots/fillBetween.js";
+import { parsePgfplotsFillBetween, splitXMonotoneFillBetweenPaths } from "../src/pgfplots/fillBetween.js";
 import { collectPgfplotsLibraries } from "../src/pgfplots/index.js";
 
 const LATEX_EXAMPLE_ROOT = new URL("./fixtures/examples/latex-examples/", import.meta.url);
@@ -21,6 +21,70 @@ function fillBetweenAreas(result) {
     item.style.stroke === "none"
   ));
 }
+
+const band = String.raw`
+\usepackage{pgfplots}
+\usepgfplotslibrary{fillbetween}
+\begin{tikzpicture}
+  \begin{axis}[hide axis,xmin=0,xmax=4,ymin=0,ymax=2,enlargelimits=false,
+               width=4cm,height=2cm,scale only axis]
+    \addplot[draw=none,name path=upper limit] coordinates {(0,1.5) (4,1.5)};
+    \addplot[draw=none,name path=lower limit] coordinates {(4,.5) (0,.5)};
+    \addplot[fill=red] fill between[of=upper limit and lower limit];
+  \end{axis}
+\end{tikzpicture}`;
+
+test("oppositely traced named boundaries make a solid band, not a bow tie", () => {
+  const result = tikzToSvg(band);
+  assert.deepEqual(result.diagnostics, []);
+  const [area] = fillBetweenAreas(result);
+  assert.deepEqual(area?.commands.filter(p => p.type !== "closePath").map(p => [p.x, p.y]),
+    [[0, 1.5], [4, 1.5], [4, .5], [0, .5]]);
+});
+
+test("the axis viewport clips the fill's paint without moving its boundary", () => {
+  const input = band.replace("(0,1.5) (4,1.5)", "(-1,1.5) (5,1.5)");
+  const area = fillBetweenAreas(tikzToSvg(input))[0];
+  assert.deepEqual(area?.clipRect, {minX: 0, minY: 0, maxX: 4, maxY: 2});
+  const unclipped = fillBetweenAreas(tikzToSvg(input.replace("hide axis", "hide axis,clip=false")))[0];
+  assert.ok(!unclipped?.clipRect);
+  assert.ok(unclipped?.commands.some(p => p.x === -1));
+});
+
+test("fill-between options use the addplot option reader and allow spaces in path names", () => {
+  const [fill] = parsePgfplotsFillBetween(String.raw`
+    \addplot[name path=upper limit] coordinates {(0,1) (4,1)};
+    \addplot+[fill=red] fill between[of={upper limit and lower limit},
+      every segment/.style={postaction={draw={[blue]}}},reverse=false];`);
+  assert.equal(fill?.first, "upper limit");
+  assert.equal(fill.second, "lower limit");
+  assert.equal(fill.options.reverse, "false");
+  assert.equal(fill.plotOptions.fill, "red");
+  const [bracket] = parsePgfplotsFillBetween(
+    String.raw`\addplot fill between[of=A and B,every segment/.style={name={a]b}},/pgf/fill between/reverse];`
+  );
+  assert.equal(bracket.options["every segment/.style"], "name={a]b}");
+  assert.equal(bracket.options.reverse, true);
+});
+
+test("qualified and unqualified soft clips apply where each was written", () => {
+  const source = band.replace("of=upper limit and lower limit", `/tikz/fill between/of=upper limit and lower limit,
+    soft clip first={domain=0:1},soft clip={domain=1:3},/tikz/fill between/soft clip first={domain=2:4}`);
+  const [area] = fillBetweenAreas(tikzToSvg(source));
+  const upper = area?.commands.filter(p => p.y === 1.5).map(p => p.x);
+  const lower = area?.commands.filter(p => p.y === .5).map(p => p.x);
+  assert.deepEqual(upper, [2, 4]);
+  assert.deepEqual(lower, [3, 1]);
+});
+
+test("split does not repaint the unsplit band when PGF omits every thin piece", () => {
+  const source = band.replace("(0,1.5) (4,1.5)", "(0,1) (4,1.02)")
+    .replace("(4,.5) (0,.5)", "(4,1) (0,1.02)")
+    .replace("of=upper limit and lower limit", "of=upper limit and lower limit,split");
+  assert.equal(fillBetweenAreas(tikzToSvg(source)).length, 0);
+  const keep = source.replace(",split]", ",split,/pgf/fill between/omit empty segments=false]");
+  assert.equal(fillBetweenAreas(tikzToSvg(keep)).length, 2);
+});
 
 const crossingPlots = String.raw`
 \usepackage{pgfplots}
@@ -157,7 +221,9 @@ test("pgfplots fillbetween reports its reviewed partial support boundary", () =>
   const [library] = collectPgfplotsLibraries(String.raw`\usepgfplotslibrary{fillbetween}`);
 
   assert.equal(library.implementationStatus, "partial");
-  assert.equal(library.implementedBy, "src/pgfplots/fillBetween.js");
+  for (const file of ["fillBetween", "fillBetweenBoundaries", "fillBetweenAssembly", "fillBetweenSoftClip", "fillBetweenSplit"]) {
+    assert.ok(library.implementedBy.split("; ").includes(`src/pgfplots/${file}.js`));
+  }
   assert.match(library.localSourceReviewed, /tikzlibrarypgfplots\.fillbetween\.code\.tex$/);
   assert.match(library.notes, /soft clip=\{domain=a:b\}/);
 });

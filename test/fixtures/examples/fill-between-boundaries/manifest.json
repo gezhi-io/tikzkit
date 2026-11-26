@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "opposite-traced-band",
+      "title": "Opposite directions, one solid band",
+      "source": "opposite-traced-band.tex"
+    },
+    {
+      "id": "smooth-over-steps",
+      "title": "A four-point smooth curve over a staircase",
+      "source": "smooth-over-steps.tex"
+    },
+    {
+      "id": "bezier-over-line",
+      "title": "A named cubic arch above a straight line",
+      "source": "bezier-over-line.tex"
+    },
+    {
+      "id": "soft-clipped-rising-cubic",
+      "title": "A rising curve and a line clipped separately",
+      "source": "soft-clipped-rising-cubic.tex"
+    }
+  ]
+}

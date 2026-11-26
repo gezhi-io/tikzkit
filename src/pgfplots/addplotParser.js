@@ -505,7 +505,7 @@ function findStatementEnd(source, start) {
   return -1;
 }
 
-function parseOptionalOptions(text, start) {
+export function parseOptionalOptions(text, start) {
   let cursor = skipWhitespace(text, start);
   if (text[cursor] !== "[") return { raw: "", end: cursor };
   const balanced = extractBalanced(text, cursor, "[", "]");
@@ -522,11 +522,18 @@ function skipWhitespace(text, index) {
 function extractBalanced(text, start, open, close) {
   if (text[start] !== open) return null;
   let depth = 0;
+  let braces = 0;
   for (let index = start; index < text.length; index += 1) {
     const char = text[index];
     if (char === "\\" && index + 1 < text.length) {
       index += 1;
       continue;
+    }
+    // TeX groups in an option value shield literal brackets from its delimiter.
+    if (open === "[") {
+      if (char === "{") braces++;
+      else if (char === "}") braces = Math.max(0, braces - 1);
+      if (braces) continue;
     }
     if (char === open) depth += 1;
     if (char === close) {

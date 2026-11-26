@@ -1,4 +1,5 @@
 import { isStepPlotHandler } from "../pgf/stepPlot.js";
+import { lineToCommand } from "../engine/pathBuilder.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { createBarLayout, isAxisBarPlot, renderAxisBars } from "./bars.js";
 import { renderBoxplot } from "./boxplotPaint.js";
@@ -11,6 +12,8 @@ import { createNodeNearCoordRenderer, renderAxisPlotInlineNodes } from "./plotNo
 import { renderAxisErrorBars } from "./errorBarPaint.js";
 import {
   axisPlotPointChain,
+  axisPlotPathCommands,
+  axisPlotPathName,
   clampAxisBaseline,
   splitAxisPlotPointRuns,
   shouldRenderAxisPlotPath
@@ -77,12 +80,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
     }
-    const rows = plot.coordinateRows ?? plot.points.rows;
-    const breakAtRows = rows?.length > 1 && pgfplotsEmptyLineBreaks(plot.options["empty line"] ?? axisOptions["empty line"],
-      plot.options["compat/empty line"] ?? axisOptions["compat/empty line"] ?? pgfplotsCompatLevel(axisOptions, plot.options));
-    const stream = breakAtRows ? rows.flatMap((row, i) =>
-      i && row.length ? [{ ...row[0], breakBefore: true }, ...row.slice(1)] : row) : plot.points;
-    const dataPoints = validPlotSamples(stream.filter(point => !point.stackIgnored), plot, axisOptions);
+    const dataPoints = coordinatePlotSamples(plot, axisOptions);
     const mappedPoints = mapPlotPoints(dataPoints, plot, geometry);
     const commands = [];
     const histPaint = plot.options["pgfplots histogram"] ? filledPlotPaint(plot.options, axisOptions) : null;
@@ -117,9 +115,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, options, plotIndex);
     }
-    const sampled = functionPlotPoints(plot, axisOptions, ranges, geometry, options);
-    if (!sampled) return [];
-    const { clipRanges, dataPoints, visibleDataPoints, points } = sampled;
+    const { clipRanges, dataPoints, visibleDataPoints, points } = sampledLinePlotPoints(plot, axisOptions, ranges, geometry, options);
     const combAxis = ["y", "x"].find(axis => isAxisCombPlot(axisOptions, plot.options, axis));
     if (combAxis) {
       const combDataPoints = combAxis === "y" ? clipAxisCombDataPoints(dataPoints, clipRanges) : dataPoints;
@@ -138,14 +134,11 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geometry, options, plotIndex);
     }
-    const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
-    const valid = validPlotSamples(dataPoints, plot, axisOptions);
-    const visibleDataPoints = clipPlotSamples(valid, plot, axisOptions, axisPlotClipRanges(ranges, geometry));
-    const points = mapPlotPoints(visibleDataPoints, plot, geometry);
+    const { raw, dataPoints, visibleDataPoints, points } = sampledLinePlotPoints(plot, axisOptions, ranges, geometry, options);
     const commands = renderLinePlotPath(plot, visibleDataPoints, points, axisOptions, ranges, geometry, plotIndex);
-    commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+    commands.push(...renderAxisErrorBars(plot, raw, axisOptions, ranges, geometry, plotIndex));
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, points, selectPlotColor(plot.options, plotIndex)));
-    addMarks(commands, valid);
+    addMarks(commands, dataPoints);
     return commands;
   }
   return [];
@@ -184,6 +177,38 @@ function mapPlotPoints(points, plot, geometry) {
     const mapped = plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point);
     return point.breakBefore ? { ...mapped, breakBefore: true } : mapped;
   });
+}
+
+function coordinatePlotSamples(plot, axisOptions) {
+  const rows = plot.coordinateRows ?? plot.points.rows;
+  const breakAtRows = rows?.length > 1 && pgfplotsEmptyLineBreaks(plot.options["empty line"] ?? axisOptions["empty line"],
+    plot.options["compat/empty line"] ?? axisOptions["compat/empty line"] ?? pgfplotsCompatLevel(axisOptions, plot.options));
+  const stream = breakAtRows ? rows.flatMap((row, i) =>
+    i && row.length ? [{ ...row[0], breakBefore: true }, ...row.slice(1)] : row) : plot.points;
+  return validPlotSamples(stream.filter(point => !point.stackIgnored), plot, axisOptions);
+}
+
+export function namedAxisLinePlotCommands(plot, axis, ranges, geometry, options = {}) {
+  if (plot.is3d || plot.boxplot || plot.matrixSurvey || axis.patch || plot.options.patch ||
+      plot.closedCycle || plot.pathCycle || !["coordinates", "function", "parametric"].includes(plot.type)) return [];
+  const handler = axisPlotHandler(plot.options, axis);
+  if (!(handler === "sharp plot" || handler === "smooth" || isStepPlotHandler(handler)) ||
+      Object.keys(plot.options).some(raw => {
+        const key = raw.replace(/^\/tikz\//, "");
+        return plotTransformKey.test(key) || key === "rounded corners" || key === "decorate";
+      })) return [];
+  let points;
+  if (plot.type === "coordinates") {
+    points = mapPlotPoints(coordinatePlotSamples(plot, axis), plot, geometry);
+  } else {
+    const sampled = sampledLinePlotPoints(plot, axis, ranges, geometry, options);
+    // Fill-between captures the natural contour. The ordinary painted sharp
+    // line (also used for named intersections) keeps its clipped endpoints.
+    points = sampled.dataPoints === sampled.visibleDataPoints ? sampled.points : mapPlotPoints(sampled.dataPoints, plot, geometry);
+  }
+  const commands = axisPlotPathCommands(points, axis, plot.options);
+  if (commands.length && plot.fillAnchor) commands.push(lineToCommand(geometry.mapPoint(plot.fillAnchor)));
+  return commands.some(c => c.type === "closePath") ? [] : commands;
 }
 
 function linePlotTransformScope(plot, axis, ranges, geometry) {
@@ -225,33 +250,32 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
       .filter((point) => axisPointIsValidForScale(point, axisOptions))
       .map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
   }
-  if (plot.type === "function" && !isSurfacePlot(plot, axisOptions)) {
-    return functionPlotPoints(plot, axisOptions, ranges, geometry, options)?.points || [];
-  }
-  if (plot.type === "parametric" && !isSurfacePlot(plot, axisOptions)) {
-    const clipRanges = axisPlotClipRanges(ranges, geometry);
-    const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
-    return mapPlotPoints(visiblePlotSamples(dataPoints, plot, axisOptions, clipRanges), plot, geometry);
+  if ((plot.type === "function" || plot.type === "parametric") && !isSurfacePlot(plot, axisOptions)) {
+    return sampledLinePlotPoints(plot, axisOptions, ranges, geometry, options).points;
   }
   return [];
 }
 
-function functionPlotPoints(plot, axisOptions, ranges, geometry, options) {
+// A named expression is visited for fill-between, the outline and its current
+// plot coordinates. Reuse one survey within the same axis rendering.
+const namedSampleStreams = new WeakMap();
+
+function sampledLinePlotPoints(plot, axisOptions, ranges, geometry, options) {
+  const saved = namedSampleStreams.get(plot);
+  if (saved && saved.geometry === geometry && saved.ranges === ranges && saved.axisOptions === axisOptions &&
+      saved.options === options) return saved.stream;
   const clipRanges = axisPlotClipRanges(ranges, geometry);
-  const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
-  const dataPoints = sampleFunctionDataPoints(plot, axisOptions, {
-    domain: plotDomain,
-    pgfplotsSamples: options.pgfplotsSamples || 25,
-    pgfplotsMaxSamples: 1200
-  });
-  const validDataPoints = validPlotSamples(dataPoints, plot, axisOptions);
-  const visibleDataPoints = clipPlotSamples(validDataPoints, plot, axisOptions, clipRanges);
-  return {
-    clipRanges,
-    dataPoints: validDataPoints,
-    visibleDataPoints,
-    points: mapPlotPoints(visibleDataPoints, plot, geometry)
-  };
+  const raw = plot.type === "parametric" ? sampleParametricDataPoints(plot, axisOptions, options)
+    : sampleFunctionDataPoints(plot, axisOptions, {
+      domain: parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN),
+      pgfplotsSamples: options.pgfplotsSamples || 25,
+      pgfplotsMaxSamples: 1200
+    });
+  const dataPoints = validPlotSamples(raw, plot, axisOptions);
+  const visibleDataPoints = clipPlotSamples(dataPoints, plot, axisOptions, clipRanges);
+  const stream = { raw, clipRanges, dataPoints, visibleDataPoints, points: mapPlotPoints(visibleDataPoints, plot, geometry) };
+  if (!plot.is3d && axisPlotPathName(plot.options)) namedSampleStreams.set(plot, { geometry, ranges, axisOptions, options, stream });
+  return stream;
 }
 
 function validPlotSamples(dataPoints, plot, axisOptions) {
@@ -267,10 +291,6 @@ function validPlotSamples(dataPoints, plot, axisOptions) {
     interrupted = false;
   }
   return valid;
-}
-
-function visiblePlotSamples(points, plot, axis, ranges) {
-  return clipPlotSamples(validPlotSamples(points, plot, axis), plot, axis, ranges);
 }
 
 function clipPlotSamples(valid, plot, axisOptions, clipRanges) {
@@ -305,11 +325,9 @@ function axisPoint3dInRange(point, ranges) {
 }
 
 function pgfplotsNamePathOption(options = {}) {
-  const global = options["name path global"];
-  const name = global ?? options["name path"];
-  if (name === undefined || name === null || name === true) return "";
-  const text = String(name).trim();
-  return text ? `${global !== undefined ? "name path global" : "name path"}=${text}` : "";
+  const global = options["name path global"] ?? options["/tikz/name path global"];
+  const name = axisPlotPathName(options);
+  return name ? `${global !== undefined ? "name path global" : "name path"}=${name}` : "";
 }
 
 function pgfplotsPlotClipOption(axisOptions = {}, geometry = {}) {

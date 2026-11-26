@@ -9125,6 +9125,38 @@
       "sourceCorpus": "TikZKit regression checked against native PGFPlots",
       "semanticOwner": "src/pgfplots/bars.js;src/pgfplots/addplotLowering.js",
       "features": ["sampled function", "ybar interval", "log axis", "reversed axis", "plot marks"]
+    },
+    {
+      "id": "opposite-traced-band",
+      "title": "Opposite directions, one solid band",
+      "source": "fill-between-boundaries/opposite-traced-band.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/fillBetweenAssembly.js",
+      "features": ["fill between", "named paths", "reverse=auto"]
+    },
+    {
+      "id": "smooth-over-steps",
+      "title": "A four-point smooth curve over a staircase",
+      "source": "fill-between-boundaries/smooth-over-steps.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/fillBetweenBoundaries.js",
+      "features": ["fill between", "smooth", "const plot"]
+    },
+    {
+      "id": "bezier-over-line",
+      "title": "A named cubic arch above a straight line",
+      "source": "fill-between-boundaries/bezier-over-line.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/fillBetweenBoundaries.js",
+      "features": ["fill between", "axis cs", "cubic controls"]
+    },
+    {
+      "id": "soft-clipped-rising-cubic",
+      "title": "Two independently clipped fill boundaries",
+      "source": "fill-between-boundaries/soft-clipped-rising-cubic.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/fillBetweenSoftClip.js",
+      "features": ["fill between", "soft clip first", "soft clip second", "domain y"]
     }
   ]
 }

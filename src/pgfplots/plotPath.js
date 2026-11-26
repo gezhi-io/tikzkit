@@ -1,32 +1,36 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
+import { closePathCommand, lineToCommand, moveToCommand } from "../engine/pathBuilder.js";
 import { smoothPlotCommands } from "../pgf/smoothPlot.js";
 import { isStepPlotHandler, stepPlotCommands } from "../pgf/stepPlot.js";
-import { formatAxisPathCommands, formatAxisPoint } from "./format.js";
+import { formatAxisPathCommands } from "./format.js";
 import { axisPlotHandler } from "./plotHandler.js";
 
 export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}, options = {}) {
+  return formatAxisPathCommands(axisPlotPathCommands(points, axisOptions, plotOptions, options));
+}
+
+export function axisPlotPathCommands(points, axisOptions = {}, plotOptions = {}, options = {}) {
   if (points.some((point) => point.breakBefore)) {
-    return splitAxisPlotPointRuns(points)
-      .map((run) => axisPlotPointChain(run, axisOptions, plotOptions, options)).filter(Boolean).join(" ");
+    return splitAxisPlotPointRuns(points).flatMap(run => axisPlotPathCommands(run, axisOptions, plotOptions, options));
   }
-  if (!points.length) return "";
+  if (!points.length) return [];
   const handler = axisPlotHandler(plotOptions, axisOptions);
   // Datavisualization lowers its cyclic visualizer to an internal cycle key.
   // Neither that key nor a closed-curve handler is a trailing TikZ "-- cycle".
   const cycle = Boolean(plotOptions["axis plot cycle"] ?? axisOptions["axis plot cycle"]);
   if (plotOptions["axis plot gap"]) {
-    return gappedAxisPlotPointChain(points, plotOptions, { cycle });
+    return gappedAxisPlotCommands(points, plotOptions, { cycle });
   }
   if (handler === "smooth" || handler === "smooth cycle") {
-    return smoothPointChain(points, handler === "smooth cycle" || cycle, plotOptions, axisOptions);
+    return smoothCommands(points, handler === "smooth cycle" || cycle, plotOptions, axisOptions);
   }
-  if (handler === "only marks") return "";
+  if (handler === "only marks") return [];
   // PGFPlots mirrors only connected const handlers on a reversed stacked baseline.
   const mirror = Boolean(options.mirrorConstPlot) && handler.startsWith("const plot");
-  const chain = isStepPlotHandler(handler)
-    ? formatAxisPathCommands(stepPlotCommands(points, handler, { mirror }))
-    : points.map(formatAxisPoint).join(" -- ");
-  return cycle || handler === "sharp cycle" ? `${chain} -- cycle` : chain;
+  const commands = isStepPlotHandler(handler) ? stepPlotCommands(points, handler, { mirror })
+    : points.map((p, i) => i ? lineToCommand(p) : moveToCommand(p));
+  if (cycle || handler === "sharp cycle") commands.push(closePathCommand());
+  return commands;
 }
 
 export function splitAxisPlotPointRuns(points) {
@@ -42,7 +46,12 @@ export function shouldRenderAxisPlotPath(options = {}, axisOptions = {}) {
   if (axisPlotHandler(options, axisOptions) === "only marks") return false;
   const draw = String(options.draw || "").trim().toLowerCase();
   if (draw !== "none" && draw !== "false" && draw !== "off") return true;
-  return Boolean(options["name path"] || options["name path global"]);
+  return Boolean(axisPlotPathName(options));
+}
+
+export function axisPlotPathName(options = {}) {
+  const value = options["name path global"] ?? options["/tikz/name path global"] ?? options["name path"] ?? options["/tikz/name path"];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export function parametricBaselineClosedPoints(dataPoints, mappedPoints, ranges, geometry) {
@@ -72,6 +81,10 @@ export function isConstPlot(axisOptions = {}, plotOptions = {}) {
 }
 
 export function gappedAxisPlotPointChain(points, plotOptions = {}, options = {}) {
+  return formatAxisPathCommands(gappedAxisPlotCommands(points, plotOptions, options));
+}
+
+function gappedAxisPlotCommands(points, plotOptions, options) {
   const gap = axisPlotGapDistance(plotOptions);
   const segments = [];
   for (let index = 1; index < points.length; index += 1) {
@@ -82,9 +95,7 @@ export function gappedAxisPlotPointChain(points, plotOptions = {}, options = {})
     const closing = shortenedAxisSegment(points[points.length - 1], points[0], gap);
     if (closing) segments.push(closing);
   }
-  return segments
-    .map(([from, to]) => `${formatAxisPoint(from)} -- ${formatAxisPoint(to)}`)
-    .join(" ");
+  return segments.flatMap(([from, to]) => [moveToCommand(from), lineToCommand(to)]);
 }
 
 export function axisPlotGapDistance(plotOptions = {}) {
@@ -107,19 +118,19 @@ export function shortenedAxisSegment(from, to, gap) {
 }
 
 export function smoothAxisPlotPointChain(points, plotOptions = {}) {
-  return smoothPointChain(points, false, plotOptions);
+  return formatAxisPathCommands(smoothCommands(points, false, plotOptions));
 }
 
 export function smoothAxisCyclePointChain(points, plotOptions = {}) {
-  return smoothPointChain(points, true, plotOptions);
+  return formatAxisPathCommands(smoothCommands(points, true, plotOptions));
 }
 
-function smoothPointChain(points, closed, plotOptions, axisOptions = {}) {
+function smoothCommands(points, closed, plotOptions, axisOptions = {}) {
   let tension;
   for (const layer of [axisOptions, plotOptions]) {
     for (const [key, raw] of Object.entries(layer)) {
       if (key === "tension" || key === "/tikz/tension") tension = evaluateMath(raw, {});
     }
   }
-  return formatAxisPathCommands(smoothPlotCommands(points, { closed, tension }));
+  return smoothPlotCommands(points, { closed, tension });
 }

@@ -1,0 +1,18 @@
+% TeX Live 2025: pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex:26-33,100-109.
+% Native reverse=auto joins these oppositely traversed lines at the same x.
+% The band is 1.5 cm thick at every interior x, with no unpainted waist.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{fillbetween}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[at={(0,0)},anchor=south west,width=6cm,height=4cm,scale only axis,
+    xmin=0,xmax=6,ymin=0,ymax=4,enlargelimits=false,axis lines=box,ticks=none]
+    \addplot[blue,thick,mark=none,name path=upper] coordinates {(0.5,2.25) (5.5,3.25)};
+    \addplot[red,thick,mark=none,name path=lower] coordinates {(5.5,1.75) (0.5,0.75)};
+    \addplot[draw=none,fill=teal] fill between[of=upper and lower];
+  \end{axis}
+  \path[use as bounding box] (-0.25,-0.25) rectangle (6.25,4.25);
+\end{tikzpicture}
+\end{document}

@@ -346,6 +346,26 @@ bin and does not add a bar.
 Use `xbar` or `xbar interval` for horizontal bars. See the
 [four source examples and browser/native comparison](qa/2026-11-26-bar-plots.md).
 
+## Fill Between Curves
+
+Give each boundary a name. The fill follows the plotted curves, including
+spline controls and step corners, even if the second path runs right to left.
+
+```tex
+\usepackage{pgfplots}
+\usepgfplotslibrary{fillbetween}
+\pgfplotsset{compat=1.18}
+\begin{tikzpicture}
+  \begin{axis}[xmin=0,xmax=3,ymin=0,ymax=4]
+    \addplot[blue,smooth,name path=upper] coordinates {(0,2) (1,3) (2,2) (3,3)};
+    \addplot[red,name path=lower] coordinates {(3,1) (0,.5)};
+    \addplot[fill=teal!35] fill between[of=upper and lower];
+  \end{axis}
+\end{tikzpicture}
+```
+
+See the [four editable examples and browser/reference comparison](qa/2026-11-26-fill-between-boundaries.md).
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:
