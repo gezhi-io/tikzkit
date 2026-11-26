@@ -160,7 +160,7 @@ export async function renderTikzBlocks(markdown) {
 ## 6. Use the CLI
 
 ```bash
-npx tikz2svg diagram.tex -o diagram.svg --strict
+npm exec --package=@gezhi-io/tikzkit@1 -- tikz2svg diagram.tex -o diagram.svg --strict
 ```
 
 Useful options:

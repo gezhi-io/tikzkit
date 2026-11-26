@@ -13,12 +13,13 @@ without invoking a TeX engine at runtime.
 ## Install
 
 ```bash
-npm install @gezhi-io/tikzkit
+npm install @gezhi-io/tikzkit@1
 ```
 
-Node.js 20 or newer is required.
-Recent changes on `main` may not be published to npm yet; use a local checkout
-to try them (see [Develop](#develop)).
+Requires Node.js 20+ or a modern browser with a bundler. Version 1.0 is
+the first major release of the public rendering API and CLI, not a claim
+of full TeX compatibility. Existing 0.1.x projects can upgrade with the
+command above; the documented render entry points have not been renamed.
 
 ## Quick Start
 
@@ -39,7 +40,7 @@ console.log(svg);
 Use `tikzToSvg(source)` for synchronous rendering. The package also exports
 `convertTikzToSvg`, `parseTikz`, `interpretTikz`, and `renderSvg`.
 
-From v0.1.6, the SVG canvas is transparent by default. Pass
+The SVG canvas is transparent by default. Pass
 `{ background: "white" }` as the second argument for a white canvas.
 
 ## Examples
@@ -80,10 +81,8 @@ Small text and bounding-box differences remain. The project tracks supported
 features and their explicit boundaries in the
 [extension registry](docs/extension-registry.md).
 
-The 2026-10-25 checkpoint has **3,119 passing tests, zero failures, and 14
-existing skips**. The focused polar and chronology browser checks pass;
-independent native-PDF pixel comparisons still differ. See the
-[validation record](docs/qa/2026-10-25-polar-timeline.md) for scope and limits.
+See the [1.0 release notes](docs/releases/1.0.0.md) for checked examples,
+including path coordinates, circuit grounds, and PGFPlots fills.
 
 ## Browser
 
@@ -106,8 +105,6 @@ npm run dev
 ```
 
 ## Fonts
-
-Available from v0.1.5.
 
 SVGs embed their required fonts by default, so they do not depend on a demo
 server or system fonts. All bundled glyphs are converted from local MacTeX
@@ -144,7 +141,7 @@ for (const part of splitTikzCodeBlocks(markdown)) {
 ## CLI
 
 ```bash
-npx tikz2svg diagram.tex -o diagram.svg --strict
+npm exec --package=@gezhi-io/tikzkit@1 -- tikz2svg diagram.tex -o diagram.svg --strict
 ```
 
 The CLI reads PGFPlots tables relative to the input file, including subfolders.
